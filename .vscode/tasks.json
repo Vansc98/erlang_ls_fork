@@ -8,6 +8,18 @@
             "type": "shell",
             "command": "rebar3 compile",
             "group": {"build":true, "isDefault": true}
+        },
+        {
+            "label": "生成 bin",
+            "type": "shell",
+            "command": "rebar3 escriptize",
+            "group": {"build":true}
+        },
+        {
+            "label": "shell",
+            "type": "shell",
+            "command": "rebar3 shell",
+            "group": {"build":true}
         }
     ]
 }
