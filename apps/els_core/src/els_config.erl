@@ -548,9 +548,11 @@ otp_paths(OtpPath, Recursive) ->
 ) ->
     ok.
 add_code_paths(WCDirs, RootDir) ->
+    els_beam_mfa:init(),
     AddADir = fun(ADir) ->
         ?LOG_INFO("Adding code path: ~p", [ADir]),
-        true = code:add_path(ADir)
+        true = code:add_path(ADir),
+        els_beam_mfa:add_beam_dir(ADir)
     end,
     AllNames = lists:foldl(
         fun(Elem, AccIn) ->
@@ -574,6 +576,8 @@ add_code_paths(WCDirs, RootDir) ->
         end
     ],
     lists:foreach(AddADir, Dirs).
+    % ?LOG_ERROR("cccccccccccccc:~p", [code:get_path()]),
+    % ?LOG_ERROR("cccccccccccccc:~p", [catch cfg_act_theme:find(1)]).
 
 -spec expand_env_vars(binary()) -> binary().
 expand_env_vars(Bin) ->

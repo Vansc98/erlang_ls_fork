@@ -410,7 +410,7 @@ find_completions(
             ),
             []
     end;
-find_completions(_Prefix, TriggerKind, _Opts) ->
+find_completions(_Prefix, _TriggerKind, _Opts) ->
     [].
 
 -spec list_comprehension_completion_item(els_dt_document:item(), line(), column()) ->
@@ -492,10 +492,11 @@ complete_atom(Name, Tokens, Opts) ->
                     %% export
                     unexported_definitions(Document, POIKind)
             end;
-        _ -> 
+        _ ->
             case complete_record_field(Opts, Tokens) of
                 [] ->
-                    modules(NameBinary);
+                    ?LOG_ERROR("llllllllllllll:~p",[length(els_beam_mfa:get_all_completion(NameBinary))]),
+                    all_modules(NameBinary) ++ els_beam_mfa:get_all_completion(NameBinary);
                     % ?LOG_ERROR("sssssssssss:~p", [catch atoms(Document, NameBinary)]),
                     % keywords(POIKind, ItemFormat) ++
                     %     bifs(POIKind, ItemFormat) ++
@@ -931,7 +932,22 @@ item_kind_atom(Atom) ->
 modules(Prefix) ->
     {ok, Items} = els_dt_document_index:find_by_kind(module),
     Modules = [Id || #{id := Id} <- Items],
-    % filter_by_prefix(
+    filter_by_prefix(
+        Prefix,
+        Modules,
+        fun atom_to_label/1,
+        fun item_kind_module/1
+    ).
+
+% modules_functions(Module) ->
+%     % definitions(Document, POIKind, ItemFormat, ExportedOnly),
+%     L = exported_definitions(Module, function, args),
+%     Labels = [maps:get(label, Map, <<>>) || Map <- L],
+%     ?LOG_ERROR("Module:~p, Labels:~p", [Module, Labels]).
+
+all_modules(Prefix) ->
+    {ok, Items} = els_dt_document_index:find_by_kind(module),
+    Modules = [Id || #{id := Id} <- Items],
     filter_by_null(
         Prefix,
         Modules,
@@ -1013,6 +1029,13 @@ definitions(Document, POIKind, ItemFormat, ExportedOnly) ->
                 [FA || #{id := FA} <- Exports]
         end,
     Items = resolve_definitions(Uri, POIs, FAs, ExportedOnly, ItemFormat),
+    % ?LOG_ERROR("Items:~p", [Items]),
+    % Items:[#{data =>
+    %           #{<<"arity">> => 1,
+    %           <<"function">> => find,
+    %           <<"module">> =>
+    %           cfg_act_theme},insertText =>
+    %            <<"find(${1:Arg1})">>,insertTextFormat => 2,kind => 3,label => <<"find/1">>}]
     lists:usort(Items).
 
 -spec completion_context(els_dt_document:item(), line(), column(), tokens()) ->
