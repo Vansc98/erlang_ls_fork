@@ -259,7 +259,10 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
         )
     ),
     %% Calculated from the above
-    ok = set(apps_paths, project_paths(RootPath, AppsDirs, false)),
+    % ?LOG_ERROR("aaaaaaaaaaaaaaaa11111111:~p", [project_paths(RootPath, AppsDirs, false)]),
+    % ?LOG_ERROR("aaaaaaaaaaaaaaaa22222222:~p", [apps_paths(RootPath, AppsDirs)]),
+    ok = set(apps_paths, apps_paths(RootPath, AppsDirs)),
+    % ok = set(apps_paths, project_paths(RootPath, AppsDirs, false)),
     ok = set(deps_paths, project_paths(RootPath, DepsDirs, false)),
     ok = set(include_paths, include_paths(RootPath, IncludeDirs, false)),
     ok = set(otp_paths, otp_paths(OtpPath, false) -- ExcludePaths),
@@ -491,6 +494,19 @@ include_paths(RootPath, IncludeDirs, Recursive) ->
      || Dir <- IncludeDirs
     ],
     lists:append(Paths).
+
+% 遍历所有子路径
+apps_paths(RootPath, AppsDirs) ->
+    apps_paths_loop(AppsDirs, RootPath, []).
+
+apps_paths_loop([], _RootPath, AppsDirs) ->
+    AppsDirs;
+apps_paths_loop([SubDir|T], RootPath, AppsDirs) ->
+    Path = filename:join([RootPath, SubDir]),
+    Paths = filelib:wildcard(Path),
+    Dirs = [Dir || Dir <- Paths, filelib:is_dir(Dir)],
+    apps_paths_loop(T, RootPath, Dirs ++ AppsDirs).
+
 
 -spec project_paths(path(), [string()], boolean()) -> [string()].
 project_paths(RootPath, Dirs, Recursive) ->

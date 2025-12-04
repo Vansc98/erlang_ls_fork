@@ -16,6 +16,13 @@
             "group": {"build":true}
         },
         {
+            "label": "打开目标项目",
+            "type": "shell",
+            "dependsOn": ["生成 bin"],
+            "command": "code D:\\linux_data\\qt01\\",
+            "group": {"build":true}
+        },
+        {
             "label": "shell",
             "type": "shell",
             "command": "rebar3 shell",

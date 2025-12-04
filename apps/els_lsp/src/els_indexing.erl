@@ -227,6 +227,7 @@ start() ->
     Skip = els_config_indexing:get_skip_generated_files(),
     SkipTag = els_config_indexing:get_generated_files_tag(),
     ?LOG_INFO("Start indexing. [skip=~p] [skip_tag=~p]", [Skip, SkipTag]),
+    % ?LOG_ERROR("apps_paths:~p", [els_config:get(apps_paths)]),
     start(<<"OTP">>, Skip, SkipTag, els_config:get(otp_paths), otp),
     start(<<"Applications">>, Skip, SkipTag, els_config:get(apps_paths), app),
     start(<<"Dependencies">>, Skip, SkipTag, els_config:get(deps_paths), dep).
@@ -314,6 +315,7 @@ index_dir(Dir, Skip, SkipTag, Source) ->
     ?LOG_DEBUG("Indexing directory. [dir=~s]", [Dir]),
     F = fun(FileName, {Succeeded, Skipped, Failed}) ->
         BinaryName = els_utils:to_binary(FileName),
+        % ?LOG_ERROR("index_dir:~p, source:~p", [Dir, Source]),
         case shallow_index(BinaryName, Skip, SkipTag, Source) of
             ok -> {Succeeded + 1, Skipped, Failed};
             skipped -> {Succeeded, Skipped + 1, Failed}
