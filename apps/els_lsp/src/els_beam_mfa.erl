@@ -4,7 +4,7 @@
 -export([init/0, add_beam_dir/1, get_all_completion/1]).
 -define(TAB_NAME, ets_beam_mfa).
 -record(r_beam_mfa, {
-    key = undefined,
+    key = undefined, %% {m, f, a}
     prefix = [],
     % m_chars = [],
     % f_chars = [],
@@ -14,25 +14,35 @@
 
 init() ->
     ets:new(?TAB_NAME, [named_table, public, set, {keypos, #r_beam_mfa.key}, {read_concurrency, true}]).
+
 add_beam_dir(Dir) ->
+    ExcludeL = ["gpb", "cfg"],
     FileFun = fun(File, AccIn) ->
         Mchars = filename:basename(File, ".beam"),
-		M = list_to_atom(Mchars),
-        case catch M:module_info(exports) of
-            FAs when is_list(FAs) ->
+        Pred = fun(ExcludePrefix) ->
+            check_prefix(ExcludePrefix, Mchars)
+        end,
+        case lists:any(Pred, ExcludeL) of
+            true ->
                 ok;
             _ ->
-                FAs = []
+                M = list_to_atom(Mchars),
+                case catch M:module_info(exports) of
+                    FAs when is_list(FAs) ->
+                        ok;
+                    _ ->
+                        FAs = []
+                end,
+                FAs1 = [{F, A} || {F, A} <- FAs, F =/= module_info],
+                Rs = [#r_beam_mfa{key = {M, F, A},
+                                    prefix = Mchars++atom_to_list(F),
+                                    % m_chars = [I || I <- Mchars, I=/= $_],
+                                    % f_chars = [I || I <- atom_to_list(F), I=/= $_],
+                                label = unicode:characters_to_binary(io_lib:format("~p:~p/~p", [M, F, A])),
+                                text = unicode:characters_to_binary(io_lib:format(format(A), [M, F]))}
+                        || {F, A} <- FAs, F =/= module_info],
+                ets:insert(?TAB_NAME, Rs)
         end,
-        FAs1 = [{F, A} || {F, A} <- FAs, F =/= module_info],
-        Rs = [#r_beam_mfa{key = {M, F, A},
-                            prefix = Mchars++":"++atom_to_list(F),
-                            % m_chars = [I || I <- Mchars, I=/= $_],
-                            % f_chars = [I || I <- atom_to_list(F), I=/= $_],
-                        label = unicode:characters_to_binary(io_lib:format("~p:~p/~p", [M, F, A])),
-                        text = unicode:characters_to_binary(io_lib:format(format(A), [M, F]))}
-                || {F, A} <- FAs, F =/= module_info],
-        ets:insert(?TAB_NAME, Rs),
         AccIn
 	end,
     spawn(fun() -> filelib:fold_files(Dir, ".*.beam", false, FileFun, []) end).
@@ -47,9 +57,20 @@ format(6) -> "~p:~p(${1:A1},${2:A2},${3:A3},${4:A4},${5:A5},${5:A6})";
 format(_) -> "~p:~p()".
 
 get_all_completion(PrefixBin) ->
-    ?LOG_ERROR("Prefix:~p", [PrefixBin]),
+    Prefix = binary_to_list(PrefixBin),
     L = ets:tab2list(?TAB_NAME),
-    [r2label(R) || R <- L].
+    MatchL = [r2label(R) || R <- L, check_prefix(Prefix, R#r_beam_mfa.prefix)],
+    ?LOG_ERROR("Prefix:~p", [{PrefixBin, length(L), length(MatchL)}]),
+    MatchL.
+
+check_prefix(_, []) ->
+    false;
+check_prefix([], _) ->
+    true;
+check_prefix([Char|T1], [Char|T2]) ->
+    check_prefix(T1, T2);
+check_prefix(Prefix, [_|T2]) ->
+    check_prefix(Prefix, T2).
 
 r2label(R) ->
     #{label => R#r_beam_mfa.label,

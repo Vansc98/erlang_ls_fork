@@ -495,7 +495,6 @@ complete_atom(Name, Tokens, Opts) ->
         _ ->
             case complete_record_field(Opts, Tokens) of
                 [] ->
-                    ?LOG_ERROR("llllllllllllll:~p",[length(els_beam_mfa:get_all_completion(NameBinary))]),
                     all_modules(NameBinary) ++ els_beam_mfa:get_all_completion(NameBinary);
                     % ?LOG_ERROR("sssssssssss:~p", [catch atoms(Document, NameBinary)]),
                     % keywords(POIKind, ItemFormat) ++
