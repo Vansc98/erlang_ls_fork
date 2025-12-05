@@ -152,6 +152,12 @@ to_item(#els_dt_document{
 -spec insert(item()) -> ok | {error, any()}.
 insert(Map) when is_map(Map) ->
     Record = from_item(Map),
+    % case Record#els_dt_document.kind of
+    %     function ->
+    %         ?LOG_ERROR("dddddddd", [els_scope:local_and_included_pois(Record, export_entry)]);
+    %     _ ->
+    %         ok
+    % end,
     els_db:write(name(), Record).
 
 -spec versioned_insert(item()) -> ok | {error, any()}.
@@ -160,6 +166,7 @@ versioned_insert(#{uri := Uri, version := Version} = Map) ->
     Condition = fun(#els_dt_document{version = CurrentVersion}) ->
         CurrentVersion =:= null orelse Version >= CurrentVersion
     end,
+    % ?LOG_ERROR("Uri:~p", [Uri]),
     els_db:conditional_write(name(), Uri, Record, Condition).
 
 -spec lookup(uri()) -> {ok, [item()]}.

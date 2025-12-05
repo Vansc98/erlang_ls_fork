@@ -31,7 +31,7 @@
 %%==============================================================================
 -include("els_lsp.hrl").
 -include_lib("stdlib/include/ms_transform.hrl").
-
+-include_lib("kernel/include/logger.hrl").
 %%==============================================================================
 %% Item Definition
 %%==============================================================================
@@ -98,6 +98,7 @@ to_item(#els_dt_signatures{
 -spec insert(item()) -> ok | {error, any()}.
 insert(Map) when is_map(Map) ->
     Record = from_item(Map),
+    % ?LOG_ERROR("Inserting ~p", [Record]),
     els_db:write(name(), Record).
 
 -spec versioned_insert(item()) -> ok | {error, any()}.

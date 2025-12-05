@@ -17,6 +17,7 @@
     keywords/2
 ]).
 
+-export([exported_definitions/3]).
 -type options() :: #{
     trigger := binary(),
     document := els_dt_document:item(),
@@ -394,11 +395,13 @@ find_completions(
             complete_type_definition(Document, Name, ItemFormat);
         %% Check for "[...] atom"
         [{atom, _, Name} | _] = Tokens ->
+            % ?LOG_ERROR("Prefix:~p, Name:~p", [Prefix, Name]),
             complete_atom(Name, Tokens, Opts);
         %% Treat keywords as atom completion
         [{Name, _} | _] = Tokens ->
             case lists:member(Name, keywords()) of
                 true ->
+                    % ?LOG_ERROR("Prefix:~p, Name:~p", [Prefix, Name]),
                     complete_atom(Name, Tokens, Opts);
                 false ->
                     []
@@ -495,19 +498,32 @@ complete_atom(Name, Tokens, Opts) ->
         _ ->
             case complete_record_field(Opts, Tokens) of
                 [] ->
-                    all_modules(NameBinary) ++ els_beam_mfa:get_all_completion(NameBinary);
+                    % spawn_test([
+                    %     {keywords, fun() -> keywords(POIKind, ItemFormat) end},
+                    %     {bifs, fun() -> bifs(POIKind, ItemFormat) end},
+                    %     {atoms, fun() -> atoms(Document, NameBinary) end},
+                    %     {all_record_fields, fun() -> all_record_fields(Document, NameBinary) end},
+                    %     {modules, fun() -> modules(NameBinary) end},
+                    %     {definitions, fun() -> definitions(Document, POIKind, ItemFormat) end},
+                    %     {snippets, fun() -> snippets(POIKind, ItemFormat) end}
+                    % ]),
+                    
                     % ?LOG_ERROR("sssssssssss:~p", [catch atoms(Document, NameBinary)]),
-                    % keywords(POIKind, ItemFormat) ++
-                    %     bifs(POIKind, ItemFormat) ++
-                    %     atoms(Document, NameBinary) ++
-                    %     all_record_fields(Document, NameBinary) ++
-                    %     modules(NameBinary) ++
-                    %     definitions(Document, POIKind, ItemFormat) ++
-                    %     snippets(POIKind, ItemFormat);
+                    keywords(POIKind, ItemFormat) ++
+                        bifs(POIKind, ItemFormat) ++
+                        atoms(Document, NameBinary) ++
+                        all_record_fields(Document, NameBinary) ++
+                        % modules(NameBinary) ++
+                        definitions(Document, POIKind, ItemFormat) ++
+                        snippets(POIKind, ItemFormat) ++
+                    all_modules(NameBinary) ++ els_beam_mfa:get_all_completion(NameBinary);
                 RecordFields ->
                     RecordFields
             end
     end.
+
+% spawn_test(List) ->
+%     spawn(fun() -> [?LOG_ERROR("~p, ~p", [Name, catch Fun()]) || {Name, Fun} <- List] end).
 
 -spec binary_type_specifiers(binary()) -> [completion_item()].
 binary_type_specifiers(Prefix) ->

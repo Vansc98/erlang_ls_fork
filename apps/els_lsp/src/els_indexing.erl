@@ -227,6 +227,7 @@ start() ->
     Skip = els_config_indexing:get_skip_generated_files(),
     SkipTag = els_config_indexing:get_generated_files_tag(),
     ?LOG_INFO("Start indexing. [skip=~p] [skip_tag=~p]", [Skip, SkipTag]),
+    % ?LOG_ERROR("Start indexing. [skip=~p] [skip_tag=~p]", [Skip, SkipTag]),
     % ?LOG_ERROR("apps_paths:~p", [els_config:get(apps_paths)]),
     start(<<"OTP">>, Skip, SkipTag, els_config:get(otp_paths), otp),
     start(<<"Applications">>, Skip, SkipTag, els_config:get(apps_paths), app),
@@ -297,6 +298,7 @@ shallow_index(FullName, SkipGeneratedFiles, GeneratedFilesTag, Source) ->
     case SkipGeneratedFiles andalso is_generated_file(Text, GeneratedFilesTag) of
         true ->
             ?LOG_DEBUG("Skip indexing for generated file ~p", [Uri]),
+            ?LOG_ERROR("skippppppppp:~p", [FullName]),
             skipped;
         false ->
             shallow_index(Uri, Text, Source)
@@ -307,6 +309,7 @@ shallow_index(FullName, SkipGeneratedFiles, GeneratedFilesTag, Source) ->
 index_dir(Dir, Source) ->
     Skip = els_config_indexing:get_skip_generated_files(),
     SkipTag = els_config_indexing:get_generated_files_tag(),
+    % ?LOG_ERROR("ssssssssss:~p,~p", [Skip, SkipTag]),
     index_dir(Dir, Skip, SkipTag, Source).
 
 -spec index_dir(string(), boolean(), string(), els_dt_document:source()) ->

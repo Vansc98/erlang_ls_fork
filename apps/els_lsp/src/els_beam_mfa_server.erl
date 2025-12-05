@@ -6,7 +6,9 @@
 %% Macro Definitions
 %%==============================================================================
 -define(SERVER, ?MODULE).
--define(TAB_NAME, ets_beam_mfa).
+
+-define(TAB_NAME, tab_beam_mfa).
+-define(TAB_JOB, tab_todo_uri).
 
 -record(r_beam_mfa, {
     key = undefined, %% {m, f, a}
@@ -14,19 +16,28 @@
     % m_chars = [],
     % f_chars = [],
     label = <<>>,
+    from = undefined,
     text = <<>>
+}).
+
+-record(r_job, {
+    key = undefined,
+    type = undefined
 }).
 
 %% API
 -export([start_link/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -export([get_all_completion/1]).
+% -export([add_uri/1]).
 -record(state, {dummy}).
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
 init(_Args) ->
-    ets:new(?TAB_NAME, [named_table, public, set, {keypos, #r_beam_mfa.key}, {read_concurrency, true}]),
+    ets:new(?TAB_NAME, [named_table, public, set, {keypos, 2}, {read_concurrency, true}]),
+    ets:new(?TAB_JOB, [named_table, public, set, {keypos, 2}, {read_concurrency, true}]),
+    erlang:send(self(), loop),
     {ok, #state{dummy=1}}.
 
 handle_call(stop, _From, State) ->
@@ -41,6 +52,10 @@ handle_cast({add_beam_dir, Args}, State) ->
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
+handle_info(loop, State) ->
+    erlang:send_after(500, self(), loop),
+    loop(),
+    {noreply, State};
 handle_info(_Info, State) ->
     {noreply, State}.
 
@@ -56,30 +71,68 @@ add_beam_dir({Dir, ExMfaModPre}) ->
         Pred = fun(ExcludePrefix) ->
             check_prefix(ExcludePrefix, Mchars)
         end,
-        case lists:any(Pred, ExMfaModPre) of
-            true ->
-                ok;
-            _ ->
-                M = list_to_atom(Mchars),
-                case catch M:module_info(exports) of
-                    FAs when is_list(FAs) ->
-                        FAs1 = [{F, A} || {F, A} <- FAs, F =/= module_info],
-                        Rs = [#r_beam_mfa{key = {M, F, A},
-                                            prefix = Mchars++atom_to_list(F),
-                                            % m_chars = [I || I <- Mchars, I=/= $_],
-                                            % f_chars = [I || I <- atom_to_list(F), I=/= $_],
-                                        label = unicode:characters_to_binary(io_lib:format("~p:~p/~p", [M, F, A])),
-                                        text = unicode:characters_to_binary(io_lib:format(format(A), [M, F]))}
-                                || {F, A} <- FAs1, F =/= module_info],
-                        ets:insert(?TAB_NAME, Rs);
-                    _ ->
-                        ok
-                end
-        end,
+        not lists:any(Pred, ExMfaModPre) andalso index_module(Mchars),
         AccIn
     end,
     filelib:is_dir(Dir) andalso spawn(fun() -> filelib:fold_files(Dir, ".*.beam", false, FileFun, []) end),
     ok.
+
+index_module(Mchars) ->
+    M = list_to_atom(Mchars),
+    case catch M:module_info(exports) of
+        FAs when is_list(FAs) ->
+            [case ets:lookup(?TAB_NAME, {M, F, A}) of
+                [] -> 
+                    add_job(#r_job{key = M, type = mfa}),
+                    R = #r_beam_mfa{key = {M, F, A},
+                        prefix = Mchars++atom_to_list(F),
+                        from = beam_dir,
+                        label = unicode:characters_to_binary(io_lib:format("~p:~p/~p", [M, F, A])),
+                        text = unicode:characters_to_binary(io_lib:format(format(A), [M, F]))},
+                    ets:insert(?TAB_NAME, R);
+                _ ->
+                    ok
+            end
+            || {F, A} <- FAs, F =/= module_info];
+        _ ->
+            ok
+    end.
+
+add_job(Job) ->
+    ets:insert(?TAB_JOB, Job).
+
+loop() ->
+    ok.
+%     case ets:first(?TAB_JOB) of
+%         '$end_of_table' ->
+%             ignore;
+%         Key ->
+%             [Job] = ets:lookup(?TAB_JOB, Key),
+%             do_job(Job)
+%     end.
+
+% do_job(Job) ->
+%     case Job#r_job.type of
+%         mfa ->
+%             Module = Job#r_job.key,
+%             Items = els_completion_provider:exported_definitions(Module, function, args),
+%             update_item(Items);
+%         _ ->
+%             ok
+%     end.
+
+% update_item(Item) ->
+%     #{data := Data, insertText := Text} = maps:get(data, Item, #{}),
+%     #{
+%         <<"module">> := M,
+%         <<"type">> := F,
+%         <<"arity">> := A
+%     } = Data,
+%     [R] = ets:lookup(?TAB_NAME, {M, F, A}),
+%     NewText = unicode:characters_to_binary(io_lib:format("~p:~p", [M, Text])),
+%     NewR = R#r_beam_mfa{text = NewText},
+%     ?LOG_ERROR("update:~p", [M]),
+%     ets:insert(?TAB_NAME, NewR).
 
 format(0) -> "~p:~p()";
 format(1) -> "~p:~p(${1:_})";
@@ -106,6 +159,7 @@ get_all_completion(PrefixBin) ->
     end,
     MatchL = ets:foldl(Function, [], ?TAB_NAME),
     % ?LOG_ERROR("Prefix:~p", [{PrefixBin, length(ets:tab2list(?TAB_NAME)), length(MatchL)}]),
+    ?LOG_ERROR("Prefix:~p", [{PrefixBin, length(MatchL)}]),
     MatchL.
 
 check_prefix(_, []) ->
