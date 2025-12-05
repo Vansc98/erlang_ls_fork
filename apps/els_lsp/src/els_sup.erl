@@ -50,6 +50,11 @@ init([]) ->
     restrict_stdio_access(),
     ChildSpecs = [
         #{
+            id => els_beam_mfa_server,
+            start => {els_beam_mfa_server, start_link, []},
+            shutdown => brutal_kill
+        },
+        #{
             id => els_config,
             start => {els_config, start_link, []},
             shutdown => brutal_kill

@@ -7,26 +7,52 @@
             "label": "编译",
             "type": "shell",
             "command": "rebar3 compile",
-            "group": {"build":true, "isDefault": true}
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                {
+                    "owner": "erlang25erlc",
+                    "fileLocation": "relative",
+                    "applyTo": "openDocuments",
+                    "pattern": {
+                        "regexp": "(.*):(\\d+):(\\d+):\\s*(Warning:)?\\s*(.*)",
+                        "file": 1,
+                        "line": 2,
+                        "column": 3,
+                        "severity": 4,
+                        "message": 5
+                    }
+                }
+            ]
         },
         {
             "label": "生成 bin",
             "type": "shell",
             "command": "rebar3 escriptize",
-            "group": {"build":true}
+            "group": {
+                "build": true
+            }
         },
         {
             "label": "打开目标项目",
             "type": "shell",
-            "dependsOn": ["生成 bin"],
+            "dependsOn": [
+                "生成 bin"
+            ],
             "command": "code D:\\linux_data\\qt01\\",
-            "group": {"build":true}
+            "group": {
+                "build": true
+            }
         },
         {
             "label": "shell",
             "type": "shell",
             "command": "rebar3 shell",
-            "group": {"build":true}
+            "group": {
+                "build": true
+            }
         }
     ]
 }

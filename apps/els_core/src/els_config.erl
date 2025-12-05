@@ -160,7 +160,8 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
     Runtime = maps:get("runtime", Config, #{}),
     CtRunTest = maps:get("ct-run-test", Config, #{}),
     CodePathExtraDirs = maps:get("code_path_extra_dirs", Config, []),
-    ok = add_code_paths(CodePathExtraDirs, RootPath),
+    ExMfaModPre = maps:get("exclude_mfa_module_prefix", Config, []),
+    ok = add_code_paths(CodePathExtraDirs, RootPath, ExMfaModPre),
     ElvisConfigPath = maps:get("elvis_config_path", Config, undefined),
     IncrementalSync = maps:get("incremental_sync", Config, true),
     Indexing = maps:get("indexing", Config, #{}),
@@ -544,15 +545,15 @@ otp_paths(OtpPath, Recursive) ->
 
 -spec add_code_paths(
     Dirs :: list(string()),
-    RooDir :: string()
+    RooDir :: string(),
+    ExMfaModPre :: list(string())
 ) ->
     ok.
-add_code_paths(WCDirs, RootDir) ->
-    els_beam_mfa:init(),
+add_code_paths(WCDirs, RootDir, ExMfaModPre) ->
     AddADir = fun(ADir) ->
         ?LOG_INFO("Adding code path: ~p", [ADir]),
         true = code:add_path(ADir),
-        els_beam_mfa:add_beam_dir(ADir)
+        els_beam_mfa:add_beam_dir({ADir, ExMfaModPre})
     end,
     AllNames = lists:foldl(
         fun(Elem, AccIn) ->
