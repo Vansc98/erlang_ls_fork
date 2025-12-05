@@ -44,17 +44,19 @@ add_beam_dir(Dir) ->
                 ets:insert(?TAB_NAME, Rs)
         end,
         AccIn
-	end,
+    end,
     spawn(fun() -> filelib:fold_files(Dir, ".*.beam", false, FileFun, []) end).
 
 format(0) -> "~p:~p()";
-format(1) -> "~p:~p(${1:A1})";
-format(2) -> "~p:~p(${1:A1},${2:A2})";
-format(3) -> "~p:~p(${1:A1},${2:A2},${3:A3})";
-format(4) -> "~p:~p(${1:A1},${2:A2},${3:A3},${4:A4})";
-format(5) -> "~p:~p(${1:A1},${2:A2},${3:A3},${4:A4},${5:A5})";
-format(6) -> "~p:~p(${1:A1},${2:A2},${3:A3},${4:A4},${5:A5},${5:A6})";
-format(_) -> "~p:~p()".
+format(1) -> "~p:~p(${1:_})";
+format(2) -> "~p:~p(${1:_}, ${2:_})";
+% format(3) -> "~p:~p(${1:_}, ${2:_}, ${3:_})";
+% format(4) -> "~p:~p(${1:_}, ${2:_}, ${3:_}, ${4:_})";
+% format(5) -> "~p:~p(${1:_}, ${2:_}, ${3:_}, ${4:_}, ${5:_})";
+% format(6) -> "~p:~p(${1:_}, ${2:_}, ${3:_}, ${4:_}, ${5:_}, ${6:_})";
+format(N) -> "~p:~p(" ++
+            [io_lib:format("${~p:_}, ", [I]) || I <- lists:seq(1, N-1)]
+            ++ io_lib:format("${~p:_})", [N]).
 
 get_all_completion(PrefixBin) ->
     Prefix = binary_to_list(PrefixBin),
