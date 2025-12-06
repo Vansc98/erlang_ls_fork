@@ -4,5 +4,5 @@
 
 add_beam_dir(Args) ->
     gen_server:cast(?SERVER, {add_beam_dir, Args}).
-get_all_completion(PrefixBin) ->
-    els_beam_mfa_server:get_all_completion(PrefixBin).
+get_all_completion(Params) ->
+    els_beam_mfa_server:get_all_completion(Params).

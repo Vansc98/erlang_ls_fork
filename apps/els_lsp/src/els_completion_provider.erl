@@ -509,14 +509,17 @@ complete_atom(Name, Tokens, Opts) ->
                     % ]),
                     
                     % ?LOG_ERROR("sssssssssss:~p", [catch atoms(Document, NameBinary)]),
+                    ?LOG_ERROR("sssssssssss:~p", [POIKind]),
+                    ?LOG_ERROR("mmmmmmmmmmmmm:~p", [maps:get(id, Document, undefined)]),
+                    EditMod = maps:get(id, Document, 'NOT_FOUND_MODULE'),
                     keywords(POIKind, ItemFormat) ++
                         bifs(POIKind, ItemFormat) ++
-                        atoms(Document, NameBinary) ++
-                        all_record_fields(Document, NameBinary) ++
-                        % modules(NameBinary) ++
-                        definitions(Document, POIKind, ItemFormat) ++
-                        snippets(POIKind, ItemFormat) ++
-                    all_modules(NameBinary) ++ els_beam_mfa:get_all_completion(NameBinary);
+                    %     atoms(Document, NameBinary) ++
+                    %     all_record_fields(Document, NameBinary) ++
+                        modules(NameBinary) ++
+                        % definitions(Document, POIKind, ItemFormat) ++
+                    %     snippets(POIKind, ItemFormat) ++
+                    els_beam_mfa:get_all_completion({EditMod, NameBinary, Document});
                 RecordFields ->
                     RecordFields
             end
@@ -959,24 +962,6 @@ modules(Prefix) ->
 %     L = exported_definitions(Module, function, args),
 %     Labels = [maps:get(label, Map, <<>>) || Map <- L],
 %     ?LOG_ERROR("Module:~p, Labels:~p", [Module, Labels]).
-
-all_modules(Prefix) ->
-    {ok, Items} = els_dt_document_index:find_by_kind(module),
-    Modules = [Id || #{id := Id} <- Items],
-    filter_by_null(
-        Prefix,
-        Modules,
-        fun atom_to_label/1,
-        fun item_kind_module/1
-    ).
-
--spec filter_by_null(binary(), [binary()], function(), function()) -> [map()].
-filter_by_null(_Prefix, List, ToBinary, ItemFun) ->
-    FilterMapFun = fun(X) ->
-        Str = ToBinary(X),
-        {true, ItemFun(Str)}
-    end,
-    lists:filtermap(FilterMapFun, List).
 
 -spec item_kind_module(atom()) -> item().
 item_kind_module(Module) ->
@@ -1547,15 +1532,16 @@ generate_arguments(Prefix, Arity) ->
 
 %% TODO: Implement as select
 -spec filter_by_prefix(binary(), [binary()], function(), function()) -> [map()].
-filter_by_prefix(Prefix, List, ToBinary, ItemFun) ->
-    FilterMapFun = fun(X) ->
-        Str = ToBinary(X),
-        case string:prefix(Str, Prefix) of
-            nomatch -> false;
-            _ -> {true, ItemFun(Str)}
-        end
-    end,
-    lists:filtermap(FilterMapFun, List).
+filter_by_prefix(_Prefix, List, ToBinary, ItemFun) ->
+%     FilterMapFun = fun(X) ->
+%         Str = ToBinary(X),
+%         case string:prefix(Str, Prefix) of
+%             nomatch -> false;
+%             _ -> {true, ItemFun(Str)}
+%         end
+%     end,
+%     lists:filtermap(FilterMapFun, List).
+    [ItemFun(ToBinary(X)) || X <- List].
 
 %%==============================================================================
 %% Helper functions

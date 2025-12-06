@@ -15,9 +15,11 @@
     prefix = [],
     % m_chars = [],
     % f_chars = [],
-    label = <<>>,
-    from = undefined,
-    text = <<>>
+    fa_label = <<>>,
+    fa_text = <<>>,
+    mfa_label = <<>>,
+    mfa_text = <<>>,
+    from = undefined
 }).
 
 -record(r_job, {
@@ -87,8 +89,10 @@ index_module(Mchars) ->
                     R = #r_beam_mfa{key = {M, F, A},
                         prefix = Mchars++atom_to_list(F),
                         from = beam_dir,
-                        label = unicode:characters_to_binary(io_lib:format("~p:~p/~p", [M, F, A])),
-                        text = unicode:characters_to_binary(io_lib:format(format(A), [M, F]))},
+                        fa_label = unicode:characters_to_binary(io_lib:format("~p/~p", [F, A])),
+                        mfa_label = unicode:characters_to_binary(io_lib:format("~p:~p/~p", [M, F, A])),
+                        fa_text = unicode:characters_to_binary(io_lib:format(format(A), [F])),
+                        mfa_text = unicode:characters_to_binary(io_lib:format("~p:" ++ format(A), [M, F]))},
                     ets:insert(?TAB_NAME, R);
                 _ ->
                     ok
@@ -134,32 +138,37 @@ loop() ->
 %     ?LOG_ERROR("update:~p", [M]),
 %     ets:insert(?TAB_NAME, NewR).
 
-format(0) -> "~p:~p()";
-format(1) -> "~p:~p(${1:_})";
-format(2) -> "~p:~p(${1:_}, ${2:_})";
-format(3) -> "~p:~p(${1:_}, ${2:_}, ${3:_})";
-format(4) -> "~p:~p(${1:_}, ${2:_}, ${3:_}, ${4:_})";
-format(5) -> "~p:~p(${1:_}, ${2:_}, ${3:_}, ${4:_}, ${5:_})";
-format(6) -> "~p:~p(${1:_}, ${2:_}, ${3:_}, ${4:_}, ${5:_}, ${6:_})";
-format(N) -> "~p:~p(" ++
+format(0) -> "~p()";
+format(1) -> "~p(${1:_})";
+format(2) -> "~p(${1:_}, ${2:_})";
+format(3) -> "~p(${1:_}, ${2:_}, ${3:_})";
+format(4) -> "~p(${1:_}, ${2:_}, ${3:_}, ${4:_})";
+format(5) -> "~p(${1:_}, ${2:_}, ${3:_}, ${4:_}, ${5:_})";
+format(6) -> "~p(${1:_}, ${2:_}, ${3:_}, ${4:_}, ${5:_}, ${6:_})";
+format(N) -> "~p(" ++
             [io_lib:format("${~p:_}, ", [I]) || I <- lists:seq(1, N-1)]
             ++ io_lib:format("${~p:_})", [N]).
 
-get_all_completion(PrefixBin) ->
-    Prefix = binary_to_list(PrefixBin),
+get_all_completion({EditMod, NameBinary, _Document}) ->
+    Prefix = binary_to_list(NameBinary),
     % L = ets:tab2list(?TAB_NAME),
     % MatchL = [r2label(R) || R <- L, check_prefix(Prefix, R#r_beam_mfa.prefix)],
     Function = fun(R, Acc) ->
         case check_prefix(Prefix, R#r_beam_mfa.prefix) of
             true ->
-                [r2label(R) | Acc];
+                case R#r_beam_mfa.key of
+                    {EditMod, _, _} ->
+                        [fa_label(R), mfa_label(R) | Acc];
+                    _ ->
+                        [mfa_label(R) | Acc]
+                end;
             _ ->
                 Acc
         end
     end,
     MatchL = ets:foldl(Function, [], ?TAB_NAME),
     % ?LOG_ERROR("Prefix:~p", [{PrefixBin, length(ets:tab2list(?TAB_NAME)), length(MatchL)}]),
-    ?LOG_ERROR("Prefix:~p", [{PrefixBin, length(MatchL)}]),
+    ?LOG_ERROR("Prefix:~p", [{NameBinary, length(MatchL)}]),
     MatchL.
 
 check_prefix(_, []) ->
@@ -171,9 +180,19 @@ check_prefix([Char|T1], [Char|T2]) ->
 check_prefix(Prefix, [_|T2]) ->
     check_prefix(Prefix, T2).
 
-r2label(R) ->
-    #{label => R#r_beam_mfa.label,
-        kind => ?COMPLETION_ITEM_KIND_TYPE_PARAM,
-        insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET,
-        insertText => R#r_beam_mfa.text
+fa_label(R) ->
+    #{label => R#r_beam_mfa.fa_label,
+        insertText => R#r_beam_mfa.fa_text,
+        detail => <<"Beam FA">>,
+        documentation => <<"beam文件导出的函数"/utf8>>,
+        kind => ?COMPLETION_ITEM_KIND_FUNCTION,
+        insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+    }.
+mfa_label(R) ->
+    #{label => R#r_beam_mfa.mfa_label,
+        insertText => R#r_beam_mfa.mfa_text,
+        detail => <<"Beam MFA">>,
+        documentation => <<"beam文件导出的函数"/utf8>>,
+        kind => ?COMPLETION_ITEM_KIND_FUNCTION,
+        insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
     }.
