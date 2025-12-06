@@ -66,6 +66,8 @@ handle_request({completion, Params}) ->
     ),
     TriggerKind = maps:get(<<"triggerKind">>, Context),
     TriggerCharacter = maps:get(<<"triggerCharacter">>, Context, <<>>),
+    % RequestId = maps:get(request_id, Params, null),
+    % ?LOG_ERROR("uuuuuuuuuuuu:~p", [RequestId]),
     Job = run_completion_job(Uri, Line, Character, TriggerKind, TriggerCharacter),
     {async, Uri, Job};
 handle_request({resolve, CompletionItem}) ->
@@ -498,35 +500,65 @@ complete_atom(Name, Tokens, Opts) ->
         _ ->
             case complete_record_field(Opts, Tokens) of
                 [] ->
-                    % spawn_test([
-                    %     {keywords, fun() -> keywords(POIKind, ItemFormat) end},
-                    %     {bifs, fun() -> bifs(POIKind, ItemFormat) end},
-                    %     {atoms, fun() -> atoms(Document, NameBinary) end},
-                    %     {all_record_fields, fun() -> all_record_fields(Document, NameBinary) end},
-                    %     {modules, fun() -> modules(NameBinary) end},
-                    %     {definitions, fun() -> definitions(Document, POIKind, ItemFormat) end},
-                    %     {snippets, fun() -> snippets(POIKind, ItemFormat) end}
-                    % ]),
-                    
-                    % ?LOG_ERROR("sssssssssss:~p", [catch atoms(Document, NameBinary)]),
-                    ?LOG_ERROR("sssssssssss:~p", [POIKind]),
-                    ?LOG_ERROR("mmmmmmmmmmmmm:~p", [maps:get(id, Document, undefined)]),
                     EditMod = maps:get(id, Document, 'NOT_FOUND_MODULE'),
-                    keywords(POIKind, ItemFormat) ++
-                        bifs(POIKind, ItemFormat) ++
+                    WorkList = 
+                        [
+                            {keywords, fun() -> keywords(POIKind, ItemFormat) end},
+                            {bifs, fun() -> bifs(POIKind, ItemFormat) end},
+                            {atoms, fun() -> atoms(Document, NameBinary) end},
+                            {all_record_fields, fun() -> all_record_fields(Document, NameBinary) end},
+                            {modules, fun() -> modules(NameBinary) end},
+                            {definitions, fun() -> definitions(Document, POIKind, ItemFormat) end},
+                            {snippets, fun() -> snippets(POIKind, ItemFormat) end},
+                            {'els_beam_mfa:get_all_completion', fun() -> els_beam_mfa:get_all_completion({EditMod, NameBinary, Document}) end}
+                        ],
+                    % spawn_test(WorkList),
+                    spawn_work(WorkList);
+                    % ?LOG_ERROR("sssssssssss:~p", [catch atoms(Document, NameBinary)]),
+                    % ?LOG_ERROR("sssssssssss:~p", [POIKind]),
+                    % ?LOG_ERROR("mmmmmmmmmmmmm:~p", [maps:get(id, Document, undefined)]),
+                    % keywords(POIKind, ItemFormat) ++
+                    %     bifs(POIKind, ItemFormat) ++
                     %     atoms(Document, NameBinary) ++
                     %     all_record_fields(Document, NameBinary) ++
-                        modules(NameBinary) ++
+                        % modules(NameBinary) ++
                         % definitions(Document, POIKind, ItemFormat) ++
                     %     snippets(POIKind, ItemFormat) ++
-                    els_beam_mfa:get_all_completion({EditMod, NameBinary, Document});
+                    % els_beam_mfa:get_all_completion({EditMod, NameBinary, Document});
                 RecordFields ->
                     RecordFields
             end
     end.
 
+spawn_work(WorkList) ->
+    Sup = self(),
+    [spawn(fun() -> work_process(Sup, Work) end) || Work <- WorkList],
+    spawn_work_receive(WorkList, []).
+
+spawn_work_receive([], Items) ->
+    Items;
+spawn_work_receive(WorkList0, Items0) ->
+    receive
+        {Name, AddItems} ->
+            WorkList = lists:keydelete(Name, 1, WorkList0),
+            Items = AddItems ++ Items0,
+            spawn_work_receive(WorkList, Items)
+    after
+        300 ->
+            ?LOG_ERROR("Work Timeout:~p", [element(1, Work) || Work <- WorkList0]),
+            Items0
+    end.
+
+work_process(SupPid, {Name, Fun}) ->
+    Items = Fun(),
+    SupPid ! {Name, Items}.
+
 % spawn_test(List) ->
-%     spawn(fun() -> [?LOG_ERROR("~p, ~p", [Name, catch Fun()]) || {Name, Fun} <- List] end).
+%     spawn(fun() -> [begin
+%         {Time, _} = timer:tc(Fun),
+%         ?LOG_ERROR("~p, ~p", [Name, Time])
+%     end
+%     || {Name, Fun} <- List] end).
 
 -spec binary_type_specifiers(binary()) -> [completion_item()].
 binary_type_specifiers(Prefix) ->
@@ -1301,8 +1333,8 @@ keyword_completion_item('case', true) ->
         insertText =>
             <<
                 "case ${1:Exprs} of\n"
-                "  ${2:Pattern} ->\n"
-                "    ${3:Body}\n"
+                "    ${2:Pattern} ->\n"
+                "        ${3:Body}\n"
                 "end"
             >>
     };
@@ -1315,8 +1347,8 @@ keyword_completion_item('try', true) ->
             <<
                 "try ${1:Exprs}\n"
                 "catch\n"
-                "  ${2:Class}:${3:ExceptionPattern}:${4:Stacktrace} ->\n"
-                "    ${5:ExceptionBody}\n"
+                "    ${2:Class}:${3:ExceptionPattern}:${4:Stacktrace} ->\n"
+                "        ${5:ExceptionBody}\n"
                 "end"
             >>
     };
@@ -1328,8 +1360,8 @@ keyword_completion_item('catch', true) ->
         insertText =>
             <<
                 "catch\n"
-                "  ${1:Class}:${2:ExceptionPattern}:${3:Stacktrace} ->\n"
-                "    ${4:ExceptionBody}\n"
+                "    ${1:Class}:${2:ExceptionPattern}:${3:Stacktrace} ->\n"
+                "        ${4:ExceptionBody}\n"
                 "end"
             >>
     };
@@ -1341,7 +1373,7 @@ keyword_completion_item('begin', true) ->
         insertText =>
             <<
                 "begin\n"
-                "  ${1:Body}\n"
+                "    ${1:Body}\n"
                 "end"
             >>
     };
@@ -1353,7 +1385,7 @@ keyword_completion_item('maybe', true) ->
         insertText =>
             <<
                 "maybe\n"
-                "  ${1:Body}\n"
+                "    ${1:Body}\n"
                 "end"
             >>
     };
@@ -1365,8 +1397,8 @@ keyword_completion_item('after', true) ->
         insertText =>
             <<
                 "after\n"
-                "  ${1:Duration} ->\n"
-                "    ${2:Body}"
+                "    ${1:Duration} ->\n"
+                "        ${2:Body}"
             >>
     };
 keyword_completion_item('else', true) ->
@@ -1377,8 +1409,8 @@ keyword_completion_item('else', true) ->
         insertText =>
             <<
                 "else\n"
-                "  ${1:Pattern} ->\n"
-                "    ${2:Body}"
+                "    ${1:Pattern} ->\n"
+                "        ${2:Body}"
             >>
     };
 keyword_completion_item('of', true) ->
@@ -1389,8 +1421,8 @@ keyword_completion_item('of', true) ->
         insertText =>
             <<
                 "of\n"
-                "  ${1:Pattern} ->\n"
-                "    ${2:Body}"
+                "    ${1:Pattern} ->\n"
+                "        ${2:Body}"
             >>
     };
 keyword_completion_item('receive', true) ->
@@ -1401,8 +1433,8 @@ keyword_completion_item('receive', true) ->
         insertText =>
             <<
                 "receive\n"
-                "  ${1:Pattern} ->\n"
-                "    ${2:Body}\n"
+                "    ${1:Pattern} ->\n"
+                "        ${2:Body}\n"
                 "end"
             >>
     };
