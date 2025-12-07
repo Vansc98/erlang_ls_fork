@@ -204,6 +204,7 @@ shallow_index(Uri, Text, Source) ->
     case els_dt_document:versioned_insert(Document) of
         ok ->
             #{id := Id, kind := Kind} = Document,
+            els_beam_mfa:check_module(Kind, Id),
             ModuleItem = els_dt_document_index:new(Id, Uri, Kind),
             ok = els_dt_document_index:insert(ModuleItem);
         {error, condition_not_satisfied} ->
@@ -242,6 +243,7 @@ start() ->
 ) -> ok.
 start(Group, Skip, SkipTag, Entries, Source) ->
     Task = fun(Dir, {Succeeded0, Skipped0, Failed0}) ->
+        els_beam_mfa:mark_index(Source),
         {Su, Sk, Fa} = index_dir(Dir, Skip, SkipTag, Source),
         {Succeeded0 + Su, Skipped0 + Sk, Failed0 + Fa}
     end,
@@ -268,7 +270,7 @@ start(Group, Skip, SkipTag, Entries, Source) ->
                     "(succeeded: ~p, skipped: ~p, failed: ~p, duration: ~p ms)",
                     [Group, Succeeded, Skipped, Failed, Duration]
                 ),
-                Group == <<"Applications">> andalso els_beam_mfa:app_finish_index(),
+                els_beam_mfa:app_finish_index(Source),
                 els_telemetry:send_notification(Event)
             end
     },

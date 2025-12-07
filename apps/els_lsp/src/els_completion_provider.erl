@@ -521,7 +521,7 @@ complete_atom(Name, Tokens, Opts) ->
                             {'els_beam_mfa:get_all_completion', fun() -> els_beam_mfa:get_all_completion({EditMod, NameBinary, Document}) end}
                         ],
                     % spawn_test(WorkList),
-                    spawn_work(WorkList);
+                    spawn_work(WorkList, EditMod);
                     % ?LOG_ERROR("sssssssssss:~p", [catch atoms(Document, NameBinary)]),
                     % ?LOG_ERROR("sssssssssss:~p", [POIKind]),
                     % ?LOG_ERROR("mmmmmmmmmmmmm:~p", [maps:get(id, Document, undefined)]),
@@ -531,30 +531,47 @@ complete_atom(Name, Tokens, Opts) ->
                     %     all_record_fields(Document, NameBinary) ++
                         % modules(NameBinary) ++
                         % definitions(Document, POIKind, ItemFormat) ++
-                    %     snippets(POIKind, ItemFormat) ++
-                    % els_beam_mfa:get_all_completion({EditMod, NameBinary, Document});
+                    %     snippets(POIKind, ItemFormat);
                 RecordFields ->
                     RecordFields
             end
     end.
 
-spawn_work(WorkList) ->
+spawn_work(WorkList, EditMod) ->
     Sup = self(),
     [spawn_link(fun() -> work_process(Sup, Work) end) || Work <- WorkList],
-    spawn_work_receive(WorkList, []).
+    spawn_work_receive(WorkList, EditMod, [], []).
 
-spawn_work_receive([], Items) ->
-    Items;
-spawn_work_receive(WorkList0, Items0) ->
+spawn_work_receive([], _EditMod, Items, FAs) ->
+    case FAs of
+        done ->
+            Items;
+        _ ->
+            FAs ++ Items
+    end;
+spawn_work_receive(WorkList0, EditMod, Items0, FAs) ->
     receive
+        {Name = definitions, AddItems} ->
+            WorkList = lists:keydelete(Name, 1, WorkList0),
+            Items = AddItems ++ Items0,
+            spawn_work_receive(WorkList, EditMod, Items, done);
+        {Name = 'els_beam_mfa:get_all_completion', {AddItems, FAs2}} ->
+            WorkList = lists:keydelete(Name, 1, WorkList0),
+            Items = AddItems ++ Items0,
+            case FAs of
+                [] ->
+                    spawn_work_receive(WorkList, EditMod, Items, FAs2);
+                _ ->
+                    spawn_work_receive(WorkList, EditMod, Items, FAs)
+            end;
         {Name, AddItems} ->
             WorkList = lists:keydelete(Name, 1, WorkList0),
             Items = AddItems ++ Items0,
-            spawn_work_receive(WorkList, Items)
+            spawn_work_receive(WorkList, EditMod, Items, FAs)
     after
         300 ->
-            ?LOG_ERROR("Work Timeout:~p", [[element(1, Work) || Work <- WorkList0]]),
-            Items0
+            ?LOG_ERROR("Work Timeout:~p, ~p", [EditMod, [element(1, Work) || Work <- WorkList0]]),
+            spawn_work_receive([], EditMod, Items0, FAs)
     end.
 
 work_process(SupPid, {Name, Fun}) ->
