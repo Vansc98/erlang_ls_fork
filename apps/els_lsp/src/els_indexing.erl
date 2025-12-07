@@ -268,6 +268,7 @@ start(Group, Skip, SkipTag, Entries, Source) ->
                     "(succeeded: ~p, skipped: ~p, failed: ~p, duration: ~p ms)",
                     [Group, Succeeded, Skipped, Failed, Duration]
                 ),
+                Group == <<"Applications">> andalso els_beam_mfa:app_finish_index(),
                 els_telemetry:send_notification(Event)
             end
     },
@@ -298,7 +299,7 @@ shallow_index(FullName, SkipGeneratedFiles, GeneratedFilesTag, Source) ->
     case SkipGeneratedFiles andalso is_generated_file(Text, GeneratedFilesTag) of
         true ->
             ?LOG_DEBUG("Skip indexing for generated file ~p", [Uri]),
-            ?LOG_ERROR("skippppppppp:~p", [FullName]),
+            % ?LOG_ERROR("skippppppppp:~p", [FullName]),
             skipped;
         false ->
             shallow_index(Uri, Text, Source)

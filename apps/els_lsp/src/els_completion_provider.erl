@@ -178,7 +178,9 @@ find_completions(
         [{atom, _, Module} | _] = Tokens ->
             {ItemFormat, TypeOrFun} =
                 completion_context(Document, Line, Column, Tokens),
-            exported_definitions(Module, TypeOrFun, ItemFormat);
+            Ds = exported_definitions(Module, TypeOrFun, ItemFormat),
+            TypeOrFun == function andalso ItemFormat == args andalso els_beam_mfa:update_items(Ds),
+            Ds;
         [{var, _, 'MODULE'}, {'?', _}, {'fun', _} | _] ->
             Module = els_uri:module(els_dt_document:uri(Document)),
             exported_definitions(Module, 'function', arity_only);
@@ -186,7 +188,9 @@ find_completions(
             Module = els_uri:module(els_dt_document:uri(Document)),
             {ItemFormat, TypeOrFun} =
                 completion_context(Document, Line, Column, Tokens),
-            exported_definitions(Module, TypeOrFun, ItemFormat);
+            Ds = exported_definitions(Module, TypeOrFun, ItemFormat),
+            TypeOrFun == function andalso ItemFormat == args andalso els_beam_mfa:update_items(Ds),
+            Ds;
         _ ->
             []
     end;
@@ -508,7 +512,11 @@ complete_atom(Name, Tokens, Opts) ->
                             {atoms, fun() -> atoms(Document, NameBinary) end},
                             {all_record_fields, fun() -> all_record_fields(Document, NameBinary) end},
                             {modules, fun() -> modules(NameBinary) end},
-                            {definitions, fun() -> definitions(Document, POIKind, ItemFormat) end},
+                            {definitions, fun() -> 
+                                            Ds = definitions(Document, POIKind, ItemFormat),
+                                            POIKind == function andalso ItemFormat == args andalso els_beam_mfa:update_items(Ds),
+                                            Ds
+                                         end},
                             {snippets, fun() -> snippets(POIKind, ItemFormat) end},
                             {'els_beam_mfa:get_all_completion', fun() -> els_beam_mfa:get_all_completion({EditMod, NameBinary, Document}) end}
                         ],
@@ -532,7 +540,7 @@ complete_atom(Name, Tokens, Opts) ->
 
 spawn_work(WorkList) ->
     Sup = self(),
-    [spawn(fun() -> work_process(Sup, Work) end) || Work <- WorkList],
+    [spawn_link(fun() -> work_process(Sup, Work) end) || Work <- WorkList],
     spawn_work_receive(WorkList, []).
 
 spawn_work_receive([], Items) ->
@@ -545,7 +553,7 @@ spawn_work_receive(WorkList0, Items0) ->
             spawn_work_receive(WorkList, Items)
     after
         300 ->
-            ?LOG_ERROR("Work Timeout:~p", [element(1, Work) || Work <- WorkList0]),
+            ?LOG_ERROR("Work Timeout:~p", [[element(1, Work) || Work <- WorkList0]]),
             Items0
     end.
 
@@ -554,7 +562,7 @@ work_process(SupPid, {Name, Fun}) ->
     SupPid ! {Name, Items}.
 
 % spawn_test(List) ->
-%     spawn(fun() -> [begin
+%     spawn_link(fun() -> [begin
 %         {Time, _} = timer:tc(Fun),
 %         ?LOG_ERROR("~p, ~p", [Name, Time])
 %     end

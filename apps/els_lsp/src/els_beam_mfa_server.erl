@@ -32,7 +32,7 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -export([get_all_completion/1]).
 % -export([add_uri/1]).
--record(state, {dummy}).
+-record(state, {item_flag = false}).
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
@@ -40,7 +40,7 @@ init(_Args) ->
     ets:new(?TAB_NAME, [named_table, public, set, {keypos, 2}, {read_concurrency, true}]),
     ets:new(?TAB_JOB, [named_table, public, set, {keypos, 2}, {read_concurrency, true}]),
     erlang:send(self(), loop),
-    {ok, #state{dummy=1}}.
+    {ok, #state{}}.
 
 handle_call(stop, _From, State) ->
     {stop, normal, stopped, State};
@@ -51,7 +51,14 @@ handle_call(_Request, _From, State) ->
 handle_cast({add_beam_dir, Args}, State) ->
     add_beam_dir(Args),
     {noreply, State};
-handle_cast(_Msg, State) ->
+handle_cast({update_items, Args}, State) ->
+    update_items(Args),
+    {noreply, State};
+handle_cast(app_finish_index, State) ->
+    spawn_job(),
+    {noreply, State};
+handle_cast(Msg, State) ->
+    ?LOG_ERROR("unkown Msg:~p", [Msg]),
     {noreply, State}.
 
 handle_info(loop, State) ->
@@ -102,41 +109,44 @@ index_module(Mchars) ->
             ok
     end.
 
+update_items(Items) ->
+    [update_item(Item) || Item <- Items].
+
+update_item(#{data := #{<<"module">> := M,<<"function">> := F,<<"arity">> := A}, insertText := FaText}) ->
+    R = #r_beam_mfa{key = {M, F, A},
+                        prefix = atom_to_list(M)++atom_to_list(F),
+                        from = erl_file,
+                        fa_label = unicode:characters_to_binary(io_lib:format("~p/~p", [F, A])),
+                        mfa_label = unicode:characters_to_binary(io_lib:format("~p:~p/~p", [M, F, A])),
+                        fa_text = FaText,
+                        mfa_text = unicode:characters_to_binary(io_lib:format("~p:~s", [M, FaText]))},
+    ets:insert(?TAB_NAME, R),
+    delete_job(M);
+update_item(Item) ->
+    ?LOG_ERROR("Wrong Item:~p", [Item]).
+
+spawn_job() ->
+    spawn_link(fun job_process/0).
+    
+job_process() ->
+    case ets:first(?TAB_JOB) of
+        '$end_of_table' ->
+            ok;
+        M ->
+            delete_job(M),
+            % ?LOG_ERROR("Doing Job:~p", [M]),
+            Items = els_completion_provider:exported_definitions(M, function, args),
+            update_items(Items),
+            job_process()
+    end.
+
+delete_job(M) ->
+    ets:delete(?TAB_JOB, M).
 add_job(Job) ->
     ets:insert(?TAB_JOB, Job).
 
 loop() ->
     ok.
-%     case ets:first(?TAB_JOB) of
-%         '$end_of_table' ->
-%             ignore;
-%         Key ->
-%             [Job] = ets:lookup(?TAB_JOB, Key),
-%             do_job(Job)
-%     end.
-
-% do_job(Job) ->
-%     case Job#r_job.type of
-%         mfa ->
-%             Module = Job#r_job.key,
-%             Items = els_completion_provider:exported_definitions(Module, function, args),
-%             update_item(Items);
-%         _ ->
-%             ok
-%     end.
-
-% update_item(Item) ->
-%     #{data := Data, insertText := Text} = maps:get(data, Item, #{}),
-%     #{
-%         <<"module">> := M,
-%         <<"type">> := F,
-%         <<"arity">> := A
-%     } = Data,
-%     [R] = ets:lookup(?TAB_NAME, {M, F, A}),
-%     NewText = unicode:characters_to_binary(io_lib:format("~p:~p", [M, Text])),
-%     NewR = R#r_beam_mfa{text = NewText},
-%     ?LOG_ERROR("update:~p", [M]),
-%     ets:insert(?TAB_NAME, NewR).
 
 format(0) -> "~p()";
 format(1) -> "~p(${1:_})";
@@ -151,8 +161,6 @@ format(N) -> "~p(" ++
 
 get_all_completion({EditMod, NameBinary, _Document}) ->
     Prefix = binary_to_list(NameBinary),
-    % L = ets:tab2list(?TAB_NAME),
-    % MatchL = [r2label(R) || R <- L, check_prefix(Prefix, R#r_beam_mfa.prefix)],
     Function = fun(R, Acc) ->
         case check_prefix(Prefix, R#r_beam_mfa.prefix) of
             true ->

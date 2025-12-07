@@ -272,16 +272,15 @@ handle_request(
             true -> request;
             false -> notification
         end,
-    RequestId = maps:get(<<"id">>, Request, null),
-    case els_methods:dispatch(Method, Params#{request_id => RequestId}, Type, State0) of
+    case els_methods:dispatch(Method, Params, Type, State0) of
         {response, Result, State} ->
-            % RequestId = maps:get(<<"id">>, Request),
+            RequestId = maps:get(<<"id">>, Request),
             Response = els_protocol:response(RequestId, Result),
             ?LOG_DEBUG("[SERVER] Sending response [response=~s]", [Response]),
             send(Response, State0),
             State;
         {error, Error, State} ->
-            % RequestId = maps:get(<<"id">>, Request, null),
+            RequestId = maps:get(<<"id">>, Request, null),
             ErrorResponse = els_protocol:error(RequestId, Error),
             ?LOG_DEBUG(
                 "[SERVER] Sending error response [response=~s]",
@@ -293,7 +292,7 @@ handle_request(
             ?LOG_DEBUG("[SERVER] No response", []),
             State;
         {async, Uri, BackgroundJob, State} ->
-            % RequestId = maps:get(<<"id">>, Request),
+            RequestId = maps:get(<<"id">>, Request),
             % ?LOG_ERROR("RequestId:~p", [RequestId]),
             ?LOG_DEBUG(
                 "[SERVER] Suspending response [background_job=~p id=~p]",
