@@ -90,6 +90,10 @@ handle_cast({add_module, M}, State) ->
             NewState = State
     end,
     {noreply, NewState};
+handle_cast({save}, State) ->
+    save(?TAB_DATA),
+    save(?TAB_JOB),
+    {noreply, State};
 handle_cast({update_modules_num, Num}, State) ->
     SaveFlag = State#state.save_flag + Num,
     case SaveFlag > 30 of
@@ -220,7 +224,8 @@ spawn_job(AllModules) ->
             fun({Succeeded, Skipped, Failed}) ->
                 End = erlang:monotonic_time(millisecond),
                 Duration = End - Start,
-                Succeeded andalso gen_server:cast(?SERVER, {update_modules_num, Succeeded}),
+                % Succeeded > 0 andalso gen_server:cast(?SERVER, {update_modules_num, Succeeded}),
+                Succeeded > 0 andalso gen_server:cast(?SERVER, {save}),
                 Event = #{
                     group => <<"MFA">>,
                     duration_ms => Duration,
@@ -236,6 +241,7 @@ spawn_job(AllModules) ->
     ok.
 
 job_process(M) ->
+    Now = erlang:system_time(second),
     LM = last_modified(M),
     case get_job(M) of
         [#r_job{done_time = LM}] ->
@@ -245,6 +251,12 @@ job_process(M) ->
             % ?LOG_ERROR("Doing Job:~p", [M]),
             Items = els_completion_provider:exported_definitions(M, function, args),
             update_items(Items),
+            case erlang:system_time(second) - Now >= 3 of
+                true ->
+                    ?LOG_ERROR("job long_time :~p", [M]);
+                _ ->
+                    ok
+            end,
             {1, 0, 0}
     end.
 
