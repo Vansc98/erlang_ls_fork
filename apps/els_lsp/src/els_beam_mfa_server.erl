@@ -9,6 +9,7 @@
 
 -define(TAB_DATA, tab_mfa_data).
 -define(TAB_JOB,  tab_mfa_job).
+-define(TAB_KV,  tab_global_kv).
 
 -record(r_beam_mfa, {
     key = undefined, %% {m, f, a}
@@ -31,6 +32,9 @@
 -export([start_link/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -export([get_all_completion/1]).
+-export([set_kv/2]).
+-export([get_kv/2]).
+-export([not_exclude/2]).
 % -export([add_uri/1]).
 -record(state, {source_num = 0, all_modules = [], ex = [], save_flag = 0}).
 start_link() ->
@@ -39,6 +43,7 @@ start_link() ->
 init(_Args) ->
     ets:new(?TAB_DATA, [named_table, public, set, {keypos, 2}, {read_concurrency, true}]),
     ets:new(?TAB_JOB, [named_table, public, set, {keypos, 2}, {read_concurrency, true}]),
+    ets:new(?TAB_KV, [named_table, public, set, {keypos, 1}, {read_concurrency, true}]),
     load(?TAB_DATA),
     load(?TAB_JOB),
     % ?LOG_ERROR("DDD:~p", [DDD]),
@@ -66,6 +71,16 @@ save(TabName) ->
 tab_file(TabName) ->
     {ok, CurrentDir} = file:get_cwd(),
     filename:join([CurrentDir, ".vscode/erlang_ls/index/", atom_to_list(TabName)++".bin"]).
+
+set_kv(Key, Value) ->
+    ets:insert(?TAB_KV, {Key, Value}).
+get_kv(Key, Default) ->
+    case ets:lookup(?TAB_KV, Key) of
+        [{_, Value}] ->
+            Value;
+        _ ->
+            Default
+    end.
 
 handle_call(stop, _From, State) ->
     {stop, normal, stopped, State};
@@ -188,10 +203,12 @@ check_prefix(_, _) ->
 %             ++ io_lib:format("${~p:_})", [N]).
 
 update_items(Items) ->
+    update_items(Items, other).
+update_items(Items, From) ->
     case [update_item(Item) || Item <- Items] of
         [{ok, M}|_] ->
             set_job(#r_job{key = M, done_time = last_modified(M)}),
-            gen_server:cast(?SERVER, {update_modules_num, 1}); 
+            From =/= init_job andalso gen_server:cast(?SERVER, {update_modules_num, 1}); 
         _ ->
             ok
     end.
@@ -250,7 +267,7 @@ job_process(M) ->
             set_job(#r_job{key = M, done_time = LM}),
             % ?LOG_ERROR("Doing Job:~p", [M]),
             Items = els_completion_provider:exported_definitions(M, function, args),
-            update_items(Items),
+            update_items(Items, init_job),
             case erlang:system_time(second) - Now >= 3 of
                 true ->
                     ?LOG_ERROR("job long_time :~p", [M]);

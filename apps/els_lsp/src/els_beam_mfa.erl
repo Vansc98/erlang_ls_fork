@@ -9,11 +9,18 @@
 -export([valid_source/0]).
 -export([mark_index/1]).
 -export([check_module/2]).
+-export([not_exclude/1]).
 
 -define(SERVER, els_beam_mfa_server).
 
 set_exclude_list(Args) ->
+    els_beam_mfa_server:set_kv(exclude_list, Args),
     gen_server:cast(?SERVER, {set_exclude_list, Args}).
+not_exclude(M) ->
+    Mchars = atom_to_list(M),
+    ExMfaModPre = els_beam_mfa_server:get_kv(exclude_list, []),
+    els_beam_mfa_server:not_exclude(ExMfaModPre, Mchars).
+
 add_beam_dir(Args) ->
     gen_server:cast(?SERVER, {add_beam_dir, Args}).
 update_items(Args) ->

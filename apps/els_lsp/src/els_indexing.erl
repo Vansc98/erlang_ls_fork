@@ -297,14 +297,18 @@ shallow_index(FullName, SkipGeneratedFiles, GeneratedFilesTag, Source) ->
         "Shallow indexing file. [filename=~s] [uri=~s]",
         [FullName, Uri]
     ),
-    {ok, Text} = file:read_file(FullName),
-    case SkipGeneratedFiles andalso is_generated_file(Text, GeneratedFilesTag) of
+    case els_beam_mfa:not_exclude(els_uri:module(Uri)) of
         true ->
-            ?LOG_DEBUG("Skip indexing for generated file ~p", [Uri]),
-            % ?LOG_ERROR("skippppppppp:~p", [FullName]),
-            skipped;
-        false ->
-            shallow_index(Uri, Text, Source)
+            {ok, Text} = file:read_file(FullName),
+            case SkipGeneratedFiles andalso is_generated_file(Text, GeneratedFilesTag) of
+                true ->
+                    ?LOG_DEBUG("Skip indexing for generated file ~p", [Uri]),
+                    skipped;
+                false ->
+                    shallow_index(Uri, Text, Source)
+            end;
+        _ ->
+            skipped
     end.
 
 -spec index_dir(string(), els_dt_document:source()) ->
@@ -321,7 +325,6 @@ index_dir(Dir, Skip, SkipTag, Source) ->
     ?LOG_DEBUG("Indexing directory. [dir=~s]", [Dir]),
     F = fun(FileName, {Succeeded, Skipped, Failed}) ->
         BinaryName = els_utils:to_binary(FileName),
-        % ?LOG_ERROR("index_dir:~p, source:~p", [Dir, Source]),
         case shallow_index(BinaryName, Skip, SkipTag, Source) of
             ok -> {Succeeded + 1, Skipped, Failed};
             skipped -> {Succeeded, Skipped + 1, Failed}

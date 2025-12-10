@@ -1085,7 +1085,23 @@ definitions(Document, POIKind, ItemFormat, ExportedOnly) ->
                 Exports = els_scope:local_and_included_pois(Document, ExportKind),
                 [FA || #{id := FA} <- Exports]
         end,
-    Items = resolve_definitions(Uri, POIs, FAs, ExportedOnly, ItemFormat),
+    % Mod = maps:get(id, Document, mmmm),
+    % case Mod of
+    %   com ->
+    %     % ?LOG_ERROR("FAs:~p", [FAs]),
+    %     % L = lists:usort([P || P <- els_dt_document:pois(Document), maps:get(kind, P) == compile]),
+    %     % ?LOG_ERROR("L:~p", [L]);
+    %   _ ->
+    %     ok
+    % end,
+    case ExportedOnly of
+        true ->
+            IsExportAll = is_export_all(Document);
+        _ ->
+            IsExportAll = true
+    end,
+    % Items = resolve_definitions(Uri, POIs, FAs, ExportedOnly, ItemFormat),
+    Items = resolve_definitions(Uri, POIs, FAs, IsExportAll, ItemFormat),
     % ?LOG_ERROR("Items:~p", [Items]),
     % Items:[#{data =>
     %           #{<<"arity">> => 1,
@@ -1094,6 +1110,17 @@ definitions(Document, POIKind, ItemFormat, ExportedOnly) ->
     %           cfg_act_theme},insertText =>
     %            <<"find(${1:Arg1})">>,insertTextFormat => 2,kind => 3,label => <<"find/1">>}]
     lists:usort(Items).
+
+is_export_all(Document) ->
+    POIs = els_dt_document:pois(Document),
+    is_export_all_1(POIs).
+
+is_export_all_1([#{kind := compile, range := #{from := {Line,10},to := {Line,20}}}|_]) -> %% -compile(export_all).
+    true;
+is_export_all_1([_|T]) ->
+    is_export_all_1(T);
+is_export_all_1(_) ->
+    false.
 
 -spec completion_context(els_dt_document:item(), line(), column(), tokens()) ->
     {item_format(), els_poi:poi_kind() | any}.
@@ -1167,11 +1194,13 @@ is_in_heuristic(Text, Attr, Line) ->
     item_format()
 ) ->
     [map()].
-resolve_definitions(Uri, Functions, ExportsFA, ExportedOnly, ItemFormat) ->
+% resolve_definitions(Uri, Functions, ExportsFA, ExportedOnly, ItemFormat) ->
+resolve_definitions(Uri, Functions, ExportsFA, IsExportAll, ItemFormat) ->
     [
         resolve_definition(Uri, POI, ItemFormat)
      || #{id := FA} = POI <- Functions,
-        not ExportedOnly orelse lists:member(FA, ExportsFA)
+        % not ExportedOnly orelse lists:member(FA, ExportsFA)
+        IsExportAll orelse lists:member(FA, ExportsFA)
     ].
 
 -spec resolve_definition(uri(), els_poi:poi(), item_format()) -> map().
