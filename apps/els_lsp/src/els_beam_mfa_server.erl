@@ -36,7 +36,12 @@
 -export([get_kv/2]).
 -export([not_exclude/2]).
 % -export([add_uri/1]).
--record(state, {source_num = 0, all_modules = [], ex = [], save_flag = 0}).
+-record(state, {source_num = 0, 
+                all_modules = [], 
+                ex = [], 
+                save_flag = 0,
+                job_flag = false
+            }).
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
@@ -128,7 +133,24 @@ handle_cast({app_finish_index}, State) ->
         false ->
             ok
     end,
-    {noreply, State#state{source_num = Num}};
+    {noreply, State#state{source_num = Num, job_flag = true}};
+handle_cast({file_save, Uri}, State) ->
+    case State#state.job_flag of
+        true ->
+            M = els_uri:module(Uri),
+            case lists:member(M, State#state.all_modules) of
+                true ->
+                    Path = els_uri:path(Uri),
+                    els_indexing:shallow_index(Path, app),
+                    els_indexing:ensure_deeply_indexed(Uri),
+                    spawn_job([M]);
+                _ ->
+                    ok
+            end;
+        _ ->
+            ok
+    end,
+    {noreply, State};
 handle_cast(Msg, State) ->
     ?LOG_ERROR("unkown Msg:~p", [Msg]),
     {noreply, State}.

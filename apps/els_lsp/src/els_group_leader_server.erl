@@ -88,6 +88,7 @@ init(#{caller := Caller, gl := GL}) ->
     process_flag(trap_exit, true),
     ?LOG_INFO("Starting group leader server [caller=~p] [gl=~p]", [Caller, GL]),
     group_leader(self(), Caller),
+    ?LOG_ERROR("els_group_leader_server:~p", [self()]),
     {ok, #{acc => [], caller => Caller, gl => GL}}.
 
 -spec handle_call(any(), {pid(), any()}, state()) -> {noreply, state()}.

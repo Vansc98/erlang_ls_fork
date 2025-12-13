@@ -505,6 +505,7 @@ complete_atom(Name, Tokens, Opts) ->
             case complete_record_field(Opts, Tokens) of
                 [] ->
                     EditMod = maps:get(id, Document, 'NOT_FOUND_MODULE'),
+                    ?LOG_ERROR("Module:~p, Name:~p", [EditMod, Name]),
                     WorkList = 
                         [
                             {keywords, fun() -> keywords(POIKind, ItemFormat) end},
@@ -568,8 +569,7 @@ spawn_work_receive(WorkList0, EditMod, Items0, FAs) ->
             WorkList = lists:keydelete(Name, 1, WorkList0),
             Items = AddItems ++ Items0,
             spawn_work_receive(WorkList, EditMod, Items, FAs)
-    after
-        300 ->
+    after 150 ->
             ?LOG_ERROR("Work Timeout:~p, ~p", [EditMod, [element(1, Work) || Work <- WorkList0]]),
             spawn_work_receive([], EditMod, Items0, FAs)
     end.
