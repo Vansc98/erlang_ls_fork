@@ -30,3 +30,5 @@ doc
 .#*
 *#
 rebar.lock
+claude_start.sh
+CLAUDE.md

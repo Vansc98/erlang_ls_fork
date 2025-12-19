@@ -199,6 +199,8 @@ line_starts(Text) ->
 
 -spec pos([{integer(), any()}], {line_num(), column_num()}) ->
     pos_integer().
+pos([], {_LineNum, _ColumnNum}) ->
+    0;
 pos(LineStarts, {LineNum, ColumnNum}) ->
     {LinePos, _} = lists:nth(LineNum, LineStarts),
     LinePos + ColumnNum.

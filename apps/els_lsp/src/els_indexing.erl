@@ -14,6 +14,7 @@
     deep_index/2,
     remove/1
 ]).
+-export([force_deep_index/1]).
 
 %%==============================================================================
 %% Includes
@@ -81,6 +82,13 @@ ensure_deeply_indexed(Uri) ->
             Document
     end.
 
+force_deep_index(Uri) ->
+    Path = els_uri:path(Uri),
+    {ok, Text} = file:read_file(Path),
+    Source = app,
+    Document = els_dt_document:new(Uri, Text, Source),
+    deep_index(Document, true).
+
 -spec deep_index(els_dt_document:item(), boolean()) -> els_dt_document:item().
 deep_index(Document0, UpdateWords) ->
     #{
@@ -101,6 +109,7 @@ deep_index(Document0, UpdateWords) ->
         end,
     case els_dt_document:versioned_insert(Document) of
         ok ->
+            ?LOG_ERROR("insert Uri:~p Version:~p", [Uri, Version]),
             index_functions(Id, Uri, POIs, Version),
             index_signatures(Id, Uri, Text, POIs, Version),
             case Source of
@@ -111,6 +120,7 @@ deep_index(Document0, UpdateWords) ->
             end;
         {error, condition_not_satisfied} ->
             ?LOG_DEBUG("Skip indexing old version [uri=~p]", [Uri]),
+            ?LOG_ERROR("skil uri:~p version:~p", [Uri, Version]),
             ok
     end,
     Document.

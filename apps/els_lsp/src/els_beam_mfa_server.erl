@@ -140,9 +140,10 @@ handle_cast({file_save, Uri}, State) ->
             M = els_uri:module(Uri),
             case lists:member(M, State#state.all_modules) of
                 true ->
-                    Path = els_uri:path(Uri),
-                    els_indexing:shallow_index(Path, app),
-                    els_indexing:ensure_deeply_indexed(Uri),
+                    % Path = els_uri:path(Uri),
+                    % els_indexing:shallow_index(Path, app),
+                    % els_indexing:ensure_deeply_indexed(Uri),
+                    els_indexing:force_deep_index(Uri),
                     spawn_job([M]);
                 _ ->
                     ok
@@ -236,6 +237,7 @@ update_items(Items, From) ->
     end.
 
 update_item(#{data := #{<<"module">> := M,<<"function">> := F,<<"arity">> := A}, insertText := FaText}) ->
+    % ?LOG_ERROR("mfa:~p", [{M, F, A}]),
     R = #r_beam_mfa{key = {M, F, A},
                         prefix = atom_to_list(M)++atom_to_list(F),
                         from = erl_file,
@@ -287,8 +289,8 @@ job_process(M) ->
             {0, 0, 1};
         _ ->
             set_job(#r_job{key = M, done_time = LM}),
-            % ?LOG_ERROR("Doing Job:~p", [M]),
             Items = els_completion_provider:exported_definitions(M, function, args),
+            % ?LOG_ERROR("Doing Job:~p Items:~p", [M, Items]),
             update_items(Items, init_job),
             case erlang:system_time(second) - Now >= 3 of
                 true ->

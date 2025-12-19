@@ -242,15 +242,24 @@ find_completions(
             []
     end;
 find_completions(
-    Prefix,
+    Prefix0,
     ?COMPLETION_TRIGGER_KIND_CHARACTER,
     #{trigger := <<" ">>} = Opts
 ) ->
-    case lists:reverse(els_text:tokens(string:trim(Prefix))) of
-        [{',', _} | _] = Tokens ->
-            complete_record_field(Opts, Tokens);
-        _ ->
-            []
+    % Reason: {{badarg,<<233,153>>},
+    % {badarg,<<"é">>}
+    case Prefix0 of
+        <<233,153>> ->
+            [];
+        <<"é">> ->
+            [];
+        Prefix ->
+            case lists:reverse(els_text:tokens(string:trim(Prefix))) of
+                [{',', _} | _] = Tokens ->
+                    complete_record_field(Opts, Tokens);
+                _ ->
+                    []
+            end
     end;
 find_completions(
     <<"-include_lib(">>,
