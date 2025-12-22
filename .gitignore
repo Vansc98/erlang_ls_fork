@@ -32,3 +32,6 @@ doc
 rebar.lock
 claude_start.sh
 CLAUDE.md
+.claude
+openspec
+AGENTS.md
