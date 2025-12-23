@@ -69,6 +69,7 @@ start_distribution(Name) ->
     ok | {error, any()}.
 start_distribution(Name, RemoteNode, Cookie, NameType) ->
     ?LOG_INFO("Enable distribution [name=~p]", [Name]),
+    ?LOG_ERROR("Name:~p, NameType:~p, RemoteNode:~p, Cookie:~p", [Name, NameType, RemoteNode, Cookie]),
     case net_kernel:start([Name, NameType]) of
         {ok, _Pid} ->
             case Cookie of
@@ -78,6 +79,7 @@ start_distribution(Name, RemoteNode, Cookie, NameType) ->
                     erlang:set_cookie(RemoteNode, CustomCookie)
             end,
             ?LOG_INFO("Distribution enabled [name=~p]", [Name]),
+            ?LOG_ERROR("node:~p, cookie:~p", [node(), erlang:get_cookie()]),
             ok;
         {error, {already_started, _Pid}} ->
             ?LOG_INFO("Distribution already enabled [name=~p]", [Name]),

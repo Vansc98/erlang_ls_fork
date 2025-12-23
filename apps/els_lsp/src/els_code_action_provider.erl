@@ -30,7 +30,8 @@ handle_request({document_codeaction, Params}) ->
 %% @doc Result: `(Command | CodeAction)[] | null'
 -spec code_actions(uri(), range(), code_action_context()) -> [map()].
 code_actions(Uri0, Range, #{<<"diagnostics">> := Diagnostics}) ->
-    Uri = els_uri:fix_uri(Uri0),
+    % Uri = els_uri:fix_uri(Uri0),
+    Uri = Uri0,
     lists:usort(
         lists:flatten([make_code_actions(Uri, D) || D <- Diagnostics]) ++
             wrangler_handler:get_code_actions(Uri, Range) ++

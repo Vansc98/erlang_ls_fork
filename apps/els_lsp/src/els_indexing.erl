@@ -109,7 +109,6 @@ deep_index(Document0, UpdateWords) ->
         end,
     case els_dt_document:versioned_insert(Document) of
         ok ->
-            ?LOG_ERROR("insert Uri:~p Version:~p", [Uri, Version]),
             index_functions(Id, Uri, POIs, Version),
             index_signatures(Id, Uri, Text, POIs, Version),
             case Source of

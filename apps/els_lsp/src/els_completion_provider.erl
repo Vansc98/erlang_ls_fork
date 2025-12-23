@@ -296,7 +296,9 @@ find_completions(
     TriggerKind =:= ?COMPLETION_TRIGGER_KIND_INVOKED;
     TriggerKind =:= ?COMPLETION_TRIGGER_KIND_FOR_INCOMPLETE_COMPLETIONS
 ->
-    case lists:reverse(els_text:tokens(Prefix)) of
+    Tokens = lists:reverse(els_text:tokens(Prefix)),
+    % ?LOG_ERROR("Prefix:~p, Tokens:~p", [Prefix, Tokens]),
+    case Tokens of
         %% Check for "[...] fun atom:"
         [{':', _}, {atom, _, Module}, {'fun', _} | _] ->
             exported_definitions(Module, function, arity_only);

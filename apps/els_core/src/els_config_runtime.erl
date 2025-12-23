@@ -1,5 +1,5 @@
 -module(els_config_runtime).
-
+-include_lib("kernel/include/logger.hrl").
 %% We may introduce a behaviour for config modules in the future
 -export([default_config/0]).
 

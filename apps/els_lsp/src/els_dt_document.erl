@@ -171,7 +171,13 @@ versioned_insert(#{uri := Uri, version := Version} = Map) ->
 
 -spec lookup(uri()) -> {ok, [item()]}.
 lookup(Uri) ->
-    {ok, Items} = els_db:lookup(name(), Uri),
+    % {ok, Items} = els_db:lookup(name(), Uri),
+    case els_db:lookup(name(), Uri) of
+        {ok, []} ->
+            {ok, Items} = els_db:lookup(name(), els_uri:fix_uri(Uri));
+        {ok, Items} ->
+            ok
+    end,
     {ok, [to_item(Item) || Item <- Items]}.
 
 -spec delete(uri()) -> ok.
