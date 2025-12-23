@@ -137,15 +137,15 @@ handle_cast({app_finish_index}, State) ->
 handle_cast({file_save, Uri}, State) ->
     case State#state.job_flag of
         true ->
-            M = els_uri:module(Uri),
-            case lists:member(M, State#state.all_modules) of
-                true ->
-                    % Path = els_uri:path(Uri),
-                    % els_indexing:shallow_index(Path, app),
-                    % els_indexing:ensure_deeply_indexed(Uri),
+            case filename:extension(els_uri:path(Uri)) of
+                <<".erl">> ->
                     els_indexing:force_deep_index(Uri),
+                    M = els_uri:module(Uri),
                     spawn_job([M]);
-                _ ->
+                <<".hrl">> ->?LOG_ERROR("save:~p", [Uri]),
+                    _Doc = els_indexing:force_deep_index(Uri),
+                    % ?LOG_ERROR("Doc:~p", [Doc#{text => <<>>}]),
+                    % spawn(fun() -> check_doc(Uri, Doc) end),
                     ok
             end;
         _ ->

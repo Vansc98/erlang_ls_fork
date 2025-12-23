@@ -120,7 +120,6 @@ deep_index(Document0, UpdateWords) ->
             end;
         {error, condition_not_satisfied} ->
             ?LOG_DEBUG("Skip indexing old version [uri=~p]", [Uri]),
-            ?LOG_ERROR("skil uri:~p version:~p", [Uri, Version]),
             ok
     end,
     Document.

@@ -23,7 +23,8 @@ sync_mode() ->
 did_change(Params) ->
     ContentChanges = maps:get(<<"contentChanges">>, Params),
     TextDocument = maps:get(<<"textDocument">>, Params),
-    Uri = maps:get(<<"uri">>, TextDocument),
+    Uri0 = maps:get(<<"uri">>, TextDocument),
+    Uri = els_uri:fix_uri(Uri0),
     Version = maps:get(<<"version">>, TextDocument),
     case ContentChanges of
         [] ->
@@ -48,11 +49,12 @@ did_change(Params) ->
 did_open(Params) ->
     #{
         <<"textDocument">> := #{
-            <<"uri">> := Uri,
+            <<"uri">> := Uri0,
             <<"text">> := Text,
             <<"version">> := Version
         }
     } = Params,
+    Uri = els_uri:fix_uri(Uri0),
     Document = els_dt_document:new(Uri, Text, _Source = app, Version),
     els_dt_document:insert(Document),
     els_indexing:deep_index(Document, _UpdateWords = false),
@@ -60,7 +62,8 @@ did_open(Params) ->
 
 -spec did_save(map()) -> ok.
 did_save(Params) ->
-    #{<<"textDocument">> := #{<<"uri">> := Uri}} = Params,
+    #{<<"textDocument">> := #{<<"uri">> := Uri0}} = Params,
+    Uri = els_uri:fix_uri(Uri0),
     els_docs_memo:delete_by_uri(Uri),
     % ?LOG_ERROR("save:~p", [Uri]),
     gen_server:cast(els_beam_mfa_server, {file_save, Uri}),
@@ -70,7 +73,7 @@ did_save(Params) ->
 did_change_watched_files(Params) ->
     #{<<"changes">> := Changes} = Params,
     [
-        handle_file_change(Uri, Type)
+        handle_file_change(Uri = els_uri:fix_uri(Uri), Type)
      || #{<<"uri">> := Uri, <<"type">> := Type} <- Changes
     ],
     ok.

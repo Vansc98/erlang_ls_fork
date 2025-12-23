@@ -14,6 +14,7 @@
     uri/1,
     app/1
 ]).
+-export([fix_uri/1]).
 
 %%==============================================================================
 %% Types
@@ -26,6 +27,19 @@
 %% Includes
 %%==============================================================================
 -include("els_core.hrl").
+
+% <<"file:///d%3A***">>
+% <<"file:///d:***">>
+fix_uri(Uri0) ->
+    L = binary_to_list(Uri0),
+    list_to_binary(fix_uri(L, [])).
+
+fix_uri([], L) ->
+    lists:reverse(L);
+fix_uri([$%, $3, $A|T], L) ->
+    lists:reverse(L) ++ [$: | T];
+fix_uri([H|T], L) ->
+    fix_uri(T, [H|L]).
 
 -spec app(uri() | [binary()]) -> {ok, atom()} | error.
 app(Uri) when is_binary(Uri) ->
