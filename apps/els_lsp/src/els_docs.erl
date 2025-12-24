@@ -612,6 +612,10 @@ edoc(M, F, A) ->
                         "[hover] Error fetching edoc [error=~p]",
                         [{M, F, A, C, E, ST, IO}]
                     ),
+                    ?LOG_ERROR("els_docs:~p", [Uri]),
+                    ?LOG_ERROR("els_docs:~p", [
+                        catch edoc:get_doc(els_utils:to_list(els_uri:path(Uri)),[{private, true},edoc_options()])
+                    ]),
                     case IO of
                         timeout ->
                             [];

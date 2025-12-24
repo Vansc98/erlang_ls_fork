@@ -490,9 +490,10 @@ report_broken_config(lsp_notification, Path, Reason) ->
     ok.
 
 -spec include_paths(path(), string(), boolean()) -> [string()].
-include_paths(RootPath, IncludeDirs, Recursive) ->
+include_paths(RootPath, IncludeDirs0, Recursive) ->
+    IncludeDirs = [J || I <- IncludeDirs0, J <- [I, I++"/*", I++"/*/*", I++"/*/*/*"]],
     Paths = [
-        els_utils:resolve_paths([[RootPath, Dir]], Recursive)
+        [Dir1 ||Dir1 <- els_utils:resolve_paths([[RootPath, Dir]], Recursive), filelib:is_dir(Dir1)]
      || Dir <- IncludeDirs
     ],
     lists:append(Paths).
