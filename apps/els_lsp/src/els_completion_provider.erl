@@ -225,11 +225,11 @@ find_completions(
 ) ->
     binary_type_specifiers(Prefix);
 find_completions(
-    _Prefix,
+    Prefix,
     ?COMPLETION_TRIGGER_KIND_CHARACTER,
     #{trigger := <<"#">>, document := Document}
 ) ->
-    definitions(Document, record);
+    record_completion(Document, Prefix);
 find_completions(
     Prefix,
     ?COMPLETION_TRIGGER_KIND_CHARACTER,
@@ -329,13 +329,13 @@ find_completions(
             record_fields(Document, RecordName);
         %% Check for "[...] #"
         [{'#', _} | _] ->
-            definitions(Document, record);
+            record_completion(Document, Prefix);
         %% Check for "#{"
         [{'{', _}, {'#', _} | _] ->
             [map_comprehension_completion_item(Document, Line, Column)];
         %% Check for "[...] #anything"
         [_, {'#', _} | _] ->
-            definitions(Document, record);
+            record_completion(Document, Prefix);
         %% Check for "[...] #anything{"
         [{'{', _}, {atom, _, RecordName}, {'#', _} | _] ->
             record_fields_with_var(Document, RecordName);
@@ -1282,6 +1282,21 @@ all_record_fields(Document, Prefix) ->
     Fields = [Id || #{id := {_Record, Id}} <- POIs],
     Unique = lists:usort(Fields),
     filter_by_prefix(Prefix, Unique, fun atom_to_label/1, fun item_kind_field/1).
+
+record_completion(Document, _Prefix) ->
+    definitions(Document, record) ++ record_and_field(Document, <<>>).
+
+record_and_field(Document, Prefix) ->
+    POIs = els_scope:local_and_included_pois(Document, [
+        record_def_field,
+        record_field
+    ]),
+    Fields = [io_lib:format("~p.~p", [Record, Id]) || #{id := {Record, Id}} <- POIs],
+    Unique = lists:usort(Fields),
+    filter_by_prefix(Prefix, Unique, fun to_label/1, fun item_kind_field/1).
+
+to_label(L) when is_list(L) ->
+    unicode:characters_to_binary(L).
 
 -spec record_fields(els_dt_document:item(), atom()) -> [map()].
 record_fields(Document, RecordName) ->

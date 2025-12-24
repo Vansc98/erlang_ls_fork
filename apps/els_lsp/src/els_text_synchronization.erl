@@ -73,7 +73,7 @@ did_save(Params) ->
 did_change_watched_files(Params) ->
     #{<<"changes">> := Changes} = Params,
     [
-        handle_file_change(Uri = els_uri:fix_uri(Uri), Type)
+        handle_file_change(els_uri:fix_uri(Uri), Type)
      || #{<<"uri">> := Uri, <<"type">> := Type} <- Changes
     ],
     ok.

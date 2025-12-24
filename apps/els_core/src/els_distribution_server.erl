@@ -79,7 +79,7 @@ start_distribution(Name, RemoteNode, Cookie, NameType) ->
                     erlang:set_cookie(RemoteNode, CustomCookie)
             end,
             ?LOG_INFO("Distribution enabled [name=~p]", [Name]),
-            ?LOG_ERROR("node:~p, cookie:~p", [node(), erlang:get_cookie()]),
+            ?LOG_ERROR("node:~p, cookie:~p, remsh:~p", [node(), erlang:get_cookie(), "werl -remsh "++atom_to_list(node())]),
             ok;
         {error, {already_started, _Pid}} ->
             ?LOG_INFO("Distribution already enabled [name=~p]", [Name]),
