@@ -281,6 +281,9 @@ find_completions(
     case lists:reverse(els_text:tokens(Prefix)) of
         [{atom, _, RecordName}, {'#', _} | _] ->
             record_fields(Document, RecordName);
+        [{var,1, _VarNameAtom}|_] ->
+            % ?LOG_ERROR("Tokens:~p", [Tokens]),
+            record_and_field(Document, Prefix, "#~p.~p");
         _ ->
             []
     end;
@@ -423,8 +426,8 @@ find_completions(
                 false ->
                     []
             end;
-        Tokens ->
-            ?LOG_DEBUG(
+        _ ->
+            ?LOG_ERROR(
                 "No completion found. [prefix=~p] [tokens=~p]",
                 [Prefix, Tokens]
             ),
@@ -1283,15 +1286,16 @@ all_record_fields(Document, Prefix) ->
     Unique = lists:usort(Fields),
     filter_by_prefix(Prefix, Unique, fun atom_to_label/1, fun item_kind_field/1).
 
-record_completion(Document, _Prefix) ->
-    definitions(Document, record) ++ record_and_field(Document, <<>>).
+record_completion(Document, Prefix) ->
+    record_and_field(Document, Prefix, "~p.~p") ++ definitions(Document, record).
 
-record_and_field(Document, Prefix) ->
+record_and_field(Document, Prefix, Format) ->
     POIs = els_scope:local_and_included_pois(Document, [
         record_def_field,
         record_field
     ]),
-    Fields = [io_lib:format("~p.~p", [Record, Id]) || #{id := {Record, Id}} <- POIs],
+    Words = maps:get(words, Document, #{}),
+    Fields = [io_lib:format(Format, [Record, Id]) || #{id := {Record, Id}} <- POIs, maps:is_key(Record, Words)],
     Unique = lists:usort(Fields),
     filter_by_prefix(Prefix, Unique, fun to_label/1, fun item_kind_field/1).
 

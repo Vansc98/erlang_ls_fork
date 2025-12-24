@@ -490,24 +490,28 @@ report_broken_config(lsp_notification, Path, Reason) ->
     ok.
 
 -spec include_paths(path(), string(), boolean()) -> [string()].
-include_paths(RootPath, IncludeDirs, Recursive) ->
-    Paths = [
-        els_utils:resolve_paths([[RootPath, Dir]], Recursive)
-     || Dir <- IncludeDirs
-    ],
-    lists:append(Paths).
+include_paths(RootPath, IncludeDirs, _Recursive) ->
+    % Paths = [
+    %     [Dir1 ||Dir1 <- els_utils:resolve_paths([[RootPath, Dir]], Recursive), filelib:is_dir(Dir1)]
+    %  || Dir <- IncludeDirs
+    % ],
+    % lists:append(Paths).
+    deep_dirs(IncludeDirs, RootPath).
 
 % 遍历所有子路径
 apps_paths(RootPath, AppsDirs) ->
-    apps_paths_loop(AppsDirs, RootPath, []).
+    deep_dirs(AppsDirs, RootPath).
 
-apps_paths_loop([], _RootPath, AppsDirs) ->
+deep_dirs(Dirs, RootPath) ->
+    DeepDirs = [J || I <- Dirs, J <- [I, I++"/*", I++"/*/*", I++"/*/*/*", I++"/*/*/*/*"]],
+    deep_dirs(DeepDirs, RootPath, []).
+deep_dirs([], _RootPath, AppsDirs) ->
     AppsDirs;
-apps_paths_loop([SubDir|T], RootPath, AppsDirs) ->
+deep_dirs([SubDir|T], RootPath, AppsDirs) ->
     Path = filename:join([RootPath, SubDir]),
     Paths = filelib:wildcard(Path),
     Dirs = [Dir || Dir <- Paths, filelib:is_dir(Dir)],
-    apps_paths_loop(T, RootPath, Dirs ++ AppsDirs).
+    deep_dirs(T, RootPath, Dirs ++ AppsDirs).
 
 
 -spec project_paths(path(), [string()], boolean()) -> [string()].

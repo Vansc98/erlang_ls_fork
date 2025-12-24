@@ -217,12 +217,16 @@ wait_connect_and_monitor(Node, Type, Attempts, MaxAttempts) ->
 -spec ensure_epmd() -> ok.
 ensure_epmd() ->
     0 = els_utils:cmd("epmd", ["-daemon"]),
+    os:cmd("erl -name erlang_ls_ensure_epmd@127.0.0.1 -s c q"),
     ok.
 
 -spec node_name(binary(), binary()) -> atom().
 node_name(Prefix, Name0) ->
     Name = normalize_node_name(Name0),
-    Int = erlang:phash2(erlang:timestamp()),
+    % Int = erlang:phash2(erlang:timestamp()),
+    RootUri = els_config:get(root_uri),
+    Int = erlang:phash2(RootUri),
+    ?LOG_ERROR("RootUri", [RootUri]),
     Id = lists:flatten(io_lib:format("~s_~s_~p", [Prefix, Name, Int])),
     els_utils:compose_node_name(Id, els_config_runtime:get_name_type()).
 
