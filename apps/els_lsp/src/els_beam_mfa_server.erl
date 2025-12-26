@@ -191,40 +191,6 @@ check_prefix([Char|T1], [Char|T2]) ->
 check_prefix(_, _) ->
     false.
 
-% index_beam_module(Mchars) ->
-%     M = list_to_atom(Mchars),
-%     case catch M:module_info(exports) of
-%         FAs when is_list(FAs) ->
-%             [case ets:lookup(?TAB_DATA, {M, F, A}) of
-%                 [] -> 
-%                     set_job(#r_job{key = M}),
-%                     R = #r_beam_mfa{key = {M, F, A},
-%                         prefix = Mchars++atom_to_list(F),
-%                         from = beam_dir,
-%                         fa_label = unicode:characters_to_binary(io_lib:format("~p/~p", [F, A])),
-%                         mfa_label = unicode:characters_to_binary(io_lib:format("~p:~p/~p", [M, F, A])),
-%                         fa_text = unicode:characters_to_binary(io_lib:format(format(A), [F])),
-%                         mfa_text = unicode:characters_to_binary(io_lib:format("~p:" ++ format(A), [M, F]))},
-%                     ets:insert(?TAB_DATA, R);
-%                 _ ->
-%                     ok
-%             end
-%             || {F, A} <- FAs, F =/= module_info];
-%         _ ->
-%             ok
-%     end.
-
-% format(0) -> "~p()";
-% format(1) -> "~p(${1:_})";
-% format(2) -> "~p(${1:_}, ${2:_})";
-% format(3) -> "~p(${1:_}, ${2:_}, ${3:_})";
-% format(4) -> "~p(${1:_}, ${2:_}, ${3:_}, ${4:_})";
-% format(5) -> "~p(${1:_}, ${2:_}, ${3:_}, ${4:_}, ${5:_})";
-% format(6) -> "~p(${1:_}, ${2:_}, ${3:_}, ${4:_}, ${5:_}, ${6:_})";
-% format(N) -> "~p(" ++
-%             [io_lib:format("${~p:_}, ", [I]) || I <- lists:seq(1, N-1)]
-%             ++ io_lib:format("${~p:_})", [N]).
-
 update_items(Items) ->
     update_items(Items, other).
 update_items(Items, From) ->

@@ -11,9 +11,11 @@
          update/3,
          transaction/1,
          wait_for_tables/0]).
+-export([dir/0]).
 
 %% 初始化 Mnesia 数据库
 init() ->
+    application:set_env(mnesia, dir, dir()),
     case mnesia:start() of
         ok ->
             create_schema_if_not_exists(),
@@ -22,6 +24,11 @@ init() ->
         {error, Reason} ->
             {error, Reason}
     end.
+
+dir() ->
+    {ok, CurrentDir} = file:get_cwd(),
+    Dir = filename:join([CurrentDir, ".vscode/erlang_ls/mnesia"]),
+    Dir.
 
 %% 启动 Mnesia 服务
 start() ->
@@ -43,7 +50,7 @@ create_table(Name, Opts) ->
 
 %% 插入数据
 -spec insert(atom(), tuple()) -> ok | {error, term()}.
-insert(Table, Record) ->
+insert(_Table, Record) ->
     F = fun() ->
             mnesia:write(Record)
         end,
