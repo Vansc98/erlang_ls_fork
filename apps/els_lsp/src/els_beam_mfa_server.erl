@@ -95,8 +95,7 @@ handle_call(_Request, _From, State) ->
 
 handle_cast({set_exclude_list, Args}, State) ->
     {noreply, State#state{ex = Args}};
-handle_cast({add_beam_dir, Args}, State) ->
-    add_beam_dir(Args, State#state.ex),
+handle_cast({add_beam_dir, _Args}, State) ->
     {noreply, State};
 handle_cast({update_items, Args}, State) ->
     update_items(Args),
@@ -168,15 +167,6 @@ terminate(_Reason, _State) ->
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
-
-add_beam_dir(_Dir, _ExMfaModPre) ->
-    ok.
-    % FileFun = fun(File, AccIn) ->
-    %     Mchars = filename:basename(File, ".beam"),
-    %     not_exclude(ExMfaModPre, Mchars) andalso index_beam_module(Mchars),
-    %     AccIn
-    % end,
-    % filelib:is_dir(Dir) andalso spawn(fun() -> filelib:fold_files(Dir, ".*.beam", false, FileFun, []) end).
 
 not_exclude(ExMfaModPre, Mchars) ->
     Pred = fun(ExcludePrefix) ->
