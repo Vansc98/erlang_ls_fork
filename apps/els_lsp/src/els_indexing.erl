@@ -259,7 +259,6 @@ start() ->
 ) -> ok.
 start(Group, Skip, SkipTag, Entries, Source) ->
     Task = fun(Dir, {Succeeded0, Skipped0, Failed0}) ->
-        ?V({Source, Dir}),
         % els_beam_mfa:mark_index(Source),
         {Su, Sk, Fa} = index_dir(Dir, Skip, SkipTag, Source),
         {Succeeded0 + Su, Skipped0 + Sk, Failed0 + Fa}
