@@ -1,150 +1,253 @@
 -module(els_mnesia).
+-behaviour(gen_server).
+-include("els_lsp.hrl").
+-define(SERVER, ?MODULE).
 
+-export([start_link/0]).
+-export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 %% API
--export([start/0, init/0, stop/0]).
--export([create_table/2, 
-         insert/2, 
-         lookup/2, 
-         delete/2, 
-         delete_table/1, 
-         all/1,
-         update/3,
-         transaction/1,
-         wait_for_tables/0]).
+-export([start_distribution/0]).
+-export([call/1, cast/1]).
+-export([set_val/2, set_val/3, get_val/1, get_val/2]).
 -export([dir/0]).
+-export([get_lastest_docment/2]).
+-export([hook_deep_index/3]).
+-export([completion/1]).
+-export([hook_file_save/1]).
+-record(state, {
+}).
 
-%% 初始化 Mnesia 数据库
-init() ->
-    application:set_env(mnesia, dir, dir()),
-    case mnesia:start() of
-        ok ->
-            create_schema_if_not_exists(),
-            wait_for_tables(),
-            ok;
-        {error, Reason} ->
-            {error, Reason}
-    end.
+start_link() ->
+    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
+init(_Args) ->
+    put(server_flag, ?SERVER),
+    ets:new(?ETS_KV, [named_table, public, set, {keypos, 2}, {read_concurrency, true}]),
+    {ok, #state{}}.
+is_server() ->
+    get(server_flag) == ?SERVER.
 dir() ->
     {ok, CurrentDir} = file:get_cwd(),
     Dir = filename:join([CurrentDir, ".vscode/erlang_ls/mnesia"]),
+    filelib:ensure_dir(Dir++"/a"),
     Dir.
 
-%% 启动 Mnesia 服务
-start() ->
-    mnesia:start().
-
-%% 停止 Mnesia 服务
-stop() ->
-    mnesia:stop().
-
-%% 创建表
--spec create_table(atom(), list()) -> ok | {error, term()}.
-create_table(Name, Opts) ->
-    case mnesia:create_table(Name, Opts) of
-        {atomic, ok} ->
-            ok;
-        {aborted, Reason} ->
-            {error, Reason}
+set_val(Key, Value) ->
+    set_val(Key, Value, false).
+set_val(Key, Value, _IsMnesia = true) ->
+    catch mnesia:dirty_write(r_kv, #r_kv{key = Key, value = Value});
+set_val(Key, Value, _IsMnesia = false) ->
+    ets:insert(?ETS_KV, #r_kv{key = Key, value = Value}).
+get_val(Key) ->
+    get_val(Key, false).
+get_val(Key, _IsMnesia = true) ->
+    case catch mnesia:dirty_read(r_kv, Key) of
+        [#r_kv{value = Value}] ->
+            Value;
+        _ ->
+            undefined
+    end;
+get_val(Key, _IsMnesia = false) ->
+    case ets:lookup(?ETS_KV, Key) of
+        [#r_kv{value = Value}] ->
+            Value;
+        [] ->
+            undefined
     end.
 
-%% 插入数据
--spec insert(atom(), tuple()) -> ok | {error, term()}.
-insert(_Table, Record) ->
-    F = fun() ->
-            mnesia:write(Record)
-        end,
-    case mnesia:transaction(F) of
-        {atomic, ok} ->
-            ok;
-        {aborted, Reason} ->
-            {error, Reason}
-    end.
+handle_call(stop, _From, State) ->
+    {stop, normal, stopped, State};
+handle_call(Request, _From, State) ->
+    {reply, handle(Request), State}.
+handle_cast(Msg, State) ->
+    handle(Msg),
+    {noreply, State}.
+handle_info(loop, State) ->
+    erlang:send_after(500, self(), loop),
+    {noreply, State};
+handle_info(Info, State) ->
+    handle(Info),
+    {noreply, State}.
+terminate(_Reason, _State) ->
+    ok.
+code_change(_OldVsn, State, _Extra) ->
+    {ok, State}.
 
-%% 查找数据
--spec lookup(atom(), term()) -> {ok, list()} | {error, term()}.
-lookup(Table, Key) ->
-    F = fun() ->
-            mnesia:read(Table, Key)
-        end,
-    case mnesia:transaction(F) of
-        {atomic, Result} ->
-            {ok, Result};
-        {aborted, Reason} ->
-            {error, Reason}
-    end.
+handle(Func) when is_function(Func) ->
+    try
+        Func()
+    catch
+        Class:ExceptionPattern:Stacktrace ->
+            ?LOG_ERROR("C:~p~nE:~p~nS:~p", [Class, ExceptionPattern, Stacktrace])
+    end;
+handle(Request) ->
+    ?LOG_ERROR("unkown Msg:~p", [Request]),
+    ok.
 
-%% 更新数据
--spec update(atom(), term(), term()) -> ok | {error, term()}.
-update(Table, Key, NewRecord) ->
-    F = fun() ->
-            case mnesia:read(Table, Key) of
-                [] ->
-                    mnesia:write(NewRecord);
-                _ ->
-                    mnesia:delete({Table, Key}),
-                    mnesia:write(NewRecord)
-            end
-        end,
-    case mnesia:transaction(F) of
-        {atomic, ok} ->
-            ok;
-        {aborted, Reason} ->
-            {error, Reason}
-    end.
+call(Msg) ->
+    gen_server:call(?SERVER, Msg).
+cast(Msg) ->
+    gen_server:cast(?SERVER, Msg).
 
-%% 删除记录
--spec delete(atom(), term()) -> ok | {error, term()}.
-delete(Table, Key) ->
-    F = fun() ->
-            mnesia:delete({Table, Key})
-        end,
-    case mnesia:transaction(F) of
-        {atomic, ok} ->
-            ok;
-        {aborted, Reason} ->
-            {error, Reason}
-    end.
-
-%% 删除表
--spec delete_table(atom()) -> ok | {error, term()}.
-delete_table(Table) ->
-    case mnesia:delete_table(Table) of
-        {atomic, ok} ->
-            ok;
-        {aborted, Reason} ->
-            {error, Reason}
-    end.
-
-%% 获取表中所有记录
--spec all(atom()) -> {ok, list()} | {error, term()}.
-all(Table) ->
-    F = fun() ->
-            mnesia:match_object({Table, '_'})
-        end,
-    case mnesia:transaction(F) of
-        {atomic, Result} ->
-            {ok, Result};
-        {aborted, Reason} ->
-            {error, Reason}
-    end.
-
-%% 执行事务
--spec transaction(fun()) -> {atomic, term()} | {aborted, term()}.
-transaction(Fun) ->
-    mnesia:transaction(Fun).
-
-%% 等待所有表准备就绪
-wait_for_tables() ->
-    mnesia:wait_for_tables(mnesia:system_info(tables), 5000).
-
-%% 内部函数：创建 schema（如果不存在）
-create_schema_if_not_exists() ->
-    case mnesia:system_info(use_dir) of
-        false ->
-            % 如果没有使用目录，则创建 schema
-            mnesia:create_schema([node()]);
+start_distribution() ->
+    case is_server() of
         true ->
-            % 已经存在 schema，无需创建
+            application:set_env(mnesia, dir, dir()),
+            mnesia:system_info(use_dir) == false andalso mnesia:create_schema([node()]),
+            case mnesia:start() of
+                ok ->
+                    mnesia:create_table(r_uri, [{attributes, record_info(fields, r_uri)}, {disc_copies, [node()]}]),
+                    mnesia:create_table(r_kv, [{attributes, record_info(fields, r_kv)}, {disc_copies, [node()]}]),
+                    mnesia:wait_for_tables(mnesia:system_info(tables), 5000),
+                    ok;
+                {error, Reason} ->
+                    ?LOG_ERROR("mnesia start failed: ~p", [Reason])
+            end;
+        false ->
+            call(fun start_distribution/0)
+    end.
+
+get_lastest_docment(Uri, LastModified) ->
+    case mnesia:dirty_read(r_uri, Uri) of
+        [#r_uri{last_modified = LastModified, version = ?MNESIA_VERSION}] ->
+            true;
+        _ ->
+            false
+    end.
+hook_deep_index(Uri, LastModified, Document) ->
+    case filename:extension(Uri) of
+        <<".erl">> ->
+            FaItems = els_completion_provider:definitions(Document, function, args, true),
+            M = els_uri:module(Uri),
+            MChars = atom_to_list(M),
+            Ruri = #r_uri{
+                            uri = Uri,
+                            type = erl,
+                            last_modified = LastModified,
+                            basename = M,
+                            fa_list = [item2rfa(I) || I <- FaItems],
+                            prefix = MChars
+                        },
+            mnesia:dirty_write(r_uri, Ruri);
+        <<".hrl">> ->
+            Ruri = #r_uri{
+                            uri = Uri,
+                            type = hrl,
+                            basename = filename:basename(Uri),
+                            last_modified = LastModified
+                        },
+            mnesia:dirty_write(r_uri, Ruri);
+        _ ->
             ok
     end.
+
+item2rfa(#{data := #{<<"module">> := M,<<"function">> := F,<<"arity">> := A}, insertText := FaText}) ->
+    % ?V(binary_to_list(FaText)),
+    #r_fa{
+        prefix = atom_to_list(F),
+        documentation = unicode:characters_to_binary(mfa_detail(binary_to_list(FaText), [])),
+        fa_label = unicode:characters_to_binary(io_lib:format("~p/~p", [F, A])),
+        mfa_label = unicode:characters_to_binary(io_lib:format("~p:~p/~p", [M, F, A])),
+        fa_text = FaText,
+        mfa_text = unicode:characters_to_binary(io_lib:format("~p:~s", [M, FaText]))
+    }.
+
+hook_file_save(Uri0) ->
+    Config = #{
+        task => fun(Uri, _State) ->
+            LastModified = els_uri:last_modified(Uri),
+            case mnesia:dirty_read(r_uri, Uri) of
+                [#r_uri{last_modified = LastModified}] ->
+                    ok;
+                _ ->
+                    Document = els_indexing:force_deep_index(Uri),
+                    hook_deep_index(Uri, LastModified, Document)
+            end
+        end,
+        entries => [Uri0],
+        title => <<"Indexing ", Uri0/binary>>
+    },
+    els_background_job:new(Config).
+
+mfa_detail([$$, ${, _, $:|T], Detail) ->
+    mfa_detail(T, Detail);
+mfa_detail([$}|T], Detail) ->
+    mfa_detail(T, Detail);
+mfa_detail([H|T], Detail) ->
+    mfa_detail(T, [H|Detail]);
+mfa_detail([], Detail) ->
+    lists:reverse(Detail).
+
+completion({hrl_file}) ->
+    Function = fun(R, Acc) ->
+        case R#r_uri.type of
+            hrl ->
+                [els_completion_provider:item_kind_file(R#r_uri.basename)|Acc];
+            _ ->
+                Acc
+        end
+    end,
+    ets:foldl(Function, [], r_uri);
+completion({function, args, EditMod, NameBinary, _Document, _Line}) ->
+    Prefix = binary_to_list(NameBinary),
+    Function = fun(R, {MFAcc, FAcc}) ->
+        case R#r_uri.type of
+            erl ->
+                case match_prefix(Prefix, R#r_uri.prefix) of
+                    true ->
+                        case R#r_uri.basename of
+                            EditMod ->
+                                FAcc1 = fa_label(R)++FAcc;
+                            _ ->
+                                FAcc1 = FAcc
+                        end,
+                        {mfa_label(R, []) ++ MFAcc, FAcc1};
+                    RemainPrefix ->
+                        {mfa_label(R, RemainPrefix) ++ MFAcc, FAcc}
+                end;
+            _ ->
+                {MFAcc, FAcc}
+        end
+    end,
+    {MFAItems, FAITems} = ets:foldl(Function, {[], []}, r_uri),
+    % {MFAItems, FAITems} = mnesia:foldl(Function, {[], []}, r_uri),
+    % ?V({POIKind, ItemFormat, EditMod, NameBinary, length(MFAItems)}),
+    {mfa, MFAItems, FAITems};
+
+completion({any, args, _EditMod, _NameBinary, Document, Line}) ->
+    L = els_completion_provider:attributes(Document, Line),
+    [case maps:get(label, Item, undefined) of
+        <<$-, _/binary>> ->
+            InsertText = maps:get(insertText, Item, <<>>),
+            Item#{insertText => <<$-,InsertText/binary>>};
+        _ ->
+            Item
+    end
+    || Item <- L];
+completion({POIKind, ItemFormat, _EditMod, _NameBinary, _Document}) ->
+    ?V({POIKind, ItemFormat}),
+    [].
+
+mfa_label(R, RemainPrefix) ->
+    [#{label => FA#r_fa.mfa_label,
+        insertText => FA#r_fa.mfa_text,
+        % detail => <<"Index MFA">>,
+        documentation => FA#r_fa.documentation,
+        kind => ?COMPLETION_ITEM_KIND_FUNCTION,
+        insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+    }|| FA <- R#r_uri.fa_list, match_prefix(RemainPrefix, FA#r_fa.prefix) == true].
+fa_label(R) ->
+    [#{label => FA#r_fa.mfa_label,
+        insertText => FA#r_fa.fa_text,
+        % detail => <<"Index FA">>,
+        documentation => FA#r_fa.documentation,
+        kind => ?COMPLETION_ITEM_KIND_FUNCTION,
+        insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
+    }|| FA <- R#r_uri.fa_list].
+
+match_prefix([], _) ->
+    true;
+match_prefix([Char|T1], [Char|T2]) ->
+    match_prefix(T1, T2);
+match_prefix(RemainPrefix, _) ->
+    RemainPrefix.

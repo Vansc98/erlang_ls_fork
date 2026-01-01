@@ -1,0 +1,2 @@
+-module(user_default).
+-include("user_default.hrl").

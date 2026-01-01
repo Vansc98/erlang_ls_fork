@@ -1,7 +1,7 @@
 -module(els_beam_mfa_server).
 -behaviour(gen_server).
 -include("els_lsp.hrl").
--include_lib("kernel/include/logger.hrl").
+
 %%==============================================================================
 %% Macro Definitions
 %%==============================================================================

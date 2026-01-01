@@ -161,7 +161,8 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
     CtRunTest = maps:get("ct-run-test", Config, #{}),
     CodePathExtraDirs = maps:get("code_path_extra_dirs", Config, []),
     ExMfaModPre = maps:get("exclude_mfa_module_prefix", Config, []),
-    els_beam_mfa:set_exclude_list(ExMfaModPre),
+    ok = set(exclude_mfa_module_prefix, ExMfaModPre),
+    % els_beam_mfa:set_exclude_list(ExMfaModPre),
     ok = add_code_paths(CodePathExtraDirs, RootPath),
     ElvisConfigPath = maps:get("elvis_config_path", Config, undefined),
     IncrementalSync = maps:get("incremental_sync", Config, true),
@@ -261,16 +262,13 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
         )
     ),
     %% Calculated from the above
-    % ?LOG_ERROR("aaaaaaaaaaaaaaaa11111111:~p", [project_paths(RootPath, AppsDirs, false)]),
-    % ?LOG_ERROR("aaaaaaaaaaaaaaaa22222222:~p", [apps_paths(RootPath, AppsDirs)]),
-    ok = set(apps_paths, apps_paths(RootPath, AppsDirs)),
+    ok = set(apps_paths, apps_paths(RootPath, IncludeDirs++AppsDirs)),
     % ok = set(apps_paths, project_paths(RootPath, AppsDirs, false)),
     ok = set(deps_paths, project_paths(RootPath, DepsDirs, false)),
     ok = set(include_paths, include_paths(RootPath, IncludeDirs, false)),
     ok = set(otp_paths, otp_paths(OtpPath, false) -- ExcludePaths),
     ok = set(lenses, Lenses),
     ok = set(diagnostics, Diagnostics),
-    %% All (including subdirs) paths used to search files with file:path_open/3
     ok = set(
         search_paths,
         lists:append([
@@ -329,10 +327,15 @@ start_link() ->
 
 -spec get(key()) -> any().
 get(Key) ->
-    gen_server:call(?SERVER, {get, Key}).
-
+    case els_mnesia:get_val({?MODULE, Key}) of
+        undefined ->
+            gen_server:call(?SERVER, {get, Key});
+        Value ->
+            Value
+    end.
 -spec set(key(), any()) -> ok.
 set(Key, Value) ->
+    els_mnesia:set_val({?MODULE, Key}, Value),
     gen_server:call(?SERVER, {set, Key, Value}).
 
 %%==============================================================================
@@ -506,13 +509,12 @@ deep_dirs(Dirs, RootPath) ->
     DeepDirs = [J || I <- Dirs, J <- [I, I++"/*", I++"/*/*", I++"/*/*/*", I++"/*/*/*/*"]],
     deep_dirs(DeepDirs, RootPath, []).
 deep_dirs([], _RootPath, AppsDirs) ->
-    AppsDirs;
+    lists:reverse(lists:usort(AppsDirs));
 deep_dirs([SubDir|T], RootPath, AppsDirs) ->
     Path = filename:join([RootPath, SubDir]),
     Paths = filelib:wildcard(Path),
     Dirs = [Dir || Dir <- Paths, filelib:is_dir(Dir)],
     deep_dirs(T, RootPath, Dirs ++ AppsDirs).
-
 
 -spec project_paths(path(), [string()], boolean()) -> [string()].
 project_paths(RootPath, Dirs, Recursive) ->
@@ -556,8 +558,8 @@ otp_paths(OtpPath, Recursive) ->
 add_code_paths(WCDirs, RootDir) ->
     AddADir = fun(ADir) ->
         ?LOG_INFO("Adding code path: ~p", [ADir]),
-        true = code:add_path(ADir),
-        els_beam_mfa:add_beam_dir({ADir})
+        true = code:add_path(ADir)
+        % els_beam_mfa:add_beam_dir({ADir})
     end,
     AllNames = lists:foldl(
         fun(Elem, AccIn) ->

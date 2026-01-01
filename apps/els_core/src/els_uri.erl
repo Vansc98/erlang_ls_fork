@@ -9,6 +9,7 @@
 %% Exports
 %%==============================================================================
 -export([
+    last_modified/1,
     module/1,
     path/1,
     uri/1,
@@ -121,6 +122,10 @@ lowercase_drive_letter(<<Drive0, ":", Rest/binary>>) ->
     <<Drive, ":", Rest/binary>>;
 lowercase_drive_letter(Path) ->
     Path.
+
+last_modified(Uri) ->
+    FilePath = els_uri:path(Uri),
+    filelib:last_modified(FilePath).
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").

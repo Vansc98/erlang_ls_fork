@@ -18,6 +18,11 @@
 ]).
 
 -export([exported_definitions/3]).
+-export([definitions/4]).
+-export([item_kind_file/1]).
+-export([attributes/2]).
+
+
 -type options() :: #{
     trigger := binary(),
     document := els_dt_document:item(),
@@ -179,7 +184,7 @@ find_completions(
             {ItemFormat, TypeOrFun} =
                 completion_context(Document, Line, Column, Tokens),
             Ds = exported_definitions(Module, TypeOrFun, ItemFormat),
-            TypeOrFun == function andalso ItemFormat == args andalso els_beam_mfa:update_items(Ds),
+            % TypeOrFun == function andalso ItemFormat == args andalso els_beam_mfa:update_items(Ds),
             Ds;
         [{var, _, 'MODULE'}, {'?', _}, {'fun', _} | _] ->
             Module = els_uri:module(els_dt_document:uri(Document)),
@@ -189,7 +194,7 @@ find_completions(
             {ItemFormat, TypeOrFun} =
                 completion_context(Document, Line, Column, Tokens),
             Ds = exported_definitions(Module, TypeOrFun, ItemFormat),
-            TypeOrFun == function andalso ItemFormat == args andalso els_beam_mfa:update_items(Ds),
+            % TypeOrFun == function andalso ItemFormat == args andalso els_beam_mfa:update_items(Ds),
             Ds;
         _ ->
             []
@@ -270,9 +275,10 @@ find_completions(
 find_completions(
     <<"-include(">>,
     ?COMPLETION_TRIGGER_KIND_CHARACTER,
-    #{trigger := <<"\"">>, document := Document}
+    #{trigger := <<"\"">>, document := _Document}
 ) ->
-    [item_kind_file(Path) || Path <- els_include_paths:includes(Document)];
+    % [item_kind_file(Path) || Path <- els_include_paths:includes(Document)] ++
+        els_mnesia:completion({hrl_file});
 find_completions(
     Prefix,
     ?COMPLETION_TRIGGER_KIND_CHARACTER,
@@ -434,6 +440,7 @@ find_completions(
             []
     end;
 find_completions(_Prefix, _TriggerKind, _Opts) ->
+    ?V({_Prefix, _TriggerKind}),
     [].
 
 -spec list_comprehension_completion_item(els_dt_document:item(), line(), column()) ->
@@ -529,17 +536,15 @@ complete_atom(Name, Tokens, Opts) ->
                             {modules, fun() -> modules(NameBinary) end},
                             {definitions, fun() -> 
                                             Ds = definitions(Document, POIKind, ItemFormat),
-                                            POIKind == function andalso ItemFormat == args andalso els_beam_mfa:update_items(Ds),
+                                            % POIKind == function andalso ItemFormat == args andalso els_beam_mfa:update_items(Ds),
                                             Ds
                                          end},
                             {snippets, fun() -> snippets(POIKind, ItemFormat) end},
-                            {'els_beam_mfa:get_all_completion', fun() -> els_beam_mfa:get_all_completion({EditMod, NameBinary, Document}) end}
+                            {els_mnesia, fun() -> els_mnesia:completion({POIKind, ItemFormat, EditMod, NameBinary, Document, Line}) end}
+                            % {'els_beam_mfa:get_all_completion', fun() -> els_beam_mfa:get_all_completion({EditMod, NameBinary, Document}) end}
                         ],
                     % spawn_test(WorkList),
                     spawn_work(WorkList, EditMod);
-                    % ?LOG_ERROR("sssssssssss:~p", [catch atoms(Document, NameBinary)]),
-                    % ?LOG_ERROR("sssssssssss:~p", [POIKind]),
-                    % ?LOG_ERROR("mmmmmmmmmmmmm:~p", [maps:get(id, Document, undefined)]),
                     % keywords(POIKind, ItemFormat) ++
                     %     bifs(POIKind, ItemFormat) ++
                     %     atoms(Document, NameBinary) ++
@@ -570,7 +575,8 @@ spawn_work_receive(WorkList0, EditMod, Items0, FAs) ->
             WorkList = lists:keydelete(Name, 1, WorkList0),
             Items = AddItems ++ Items0,
             spawn_work_receive(WorkList, EditMod, Items, done);
-        {Name = 'els_beam_mfa:get_all_completion', {AddItems, FAs2}} ->
+        % {Name = 'els_beam_mfa:get_all_completion', {AddItems, FAs2}} ->
+        {Name = els_mnesia, {mfa, AddItems, FAs2}} ->
             WorkList = lists:keydelete(Name, 1, WorkList0),
             Items = AddItems ++ Items0,
             case FAs of

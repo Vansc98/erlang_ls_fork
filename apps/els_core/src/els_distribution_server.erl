@@ -78,6 +78,7 @@ start_distribution(Name, RemoteNode, Cookie, NameType) ->
                 CustomCookie ->
                     erlang:set_cookie(RemoteNode, CustomCookie)
             end,
+            els_mnesia:start_distribution(),
             ?LOG_INFO("Distribution enabled [name=~p]", [Name]),
             ?LOG_ERROR("node:~p, cookie:~p, remsh:~p", [node(), erlang:get_cookie(), "werl -remsh "++atom_to_list(node())]),
             ok;

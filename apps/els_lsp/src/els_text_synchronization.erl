@@ -65,8 +65,8 @@ did_save(Params) ->
     #{<<"textDocument">> := #{<<"uri">> := Uri0}} = Params,
     Uri = els_uri:fix_uri(Uri0),
     els_docs_memo:delete_by_uri(Uri),
-    % ?LOG_ERROR("save:~p", [Uri]),
-    gen_server:cast(els_beam_mfa_server, {file_save, Uri}),
+    els_mnesia:hook_file_save(Uri),
+    % gen_server:cast(els_beam_mfa_server, {file_save, Uri}),
     ok.
 
 -spec did_change_watched_files(map()) -> ok.

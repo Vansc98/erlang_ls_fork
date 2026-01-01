@@ -83,20 +83,17 @@ ensure_deeply_indexed(Uri) ->
     end.
 
 force_deep_index(Uri) ->
+    force_deep_index(Uri, app).
+force_deep_index(Uri, Source) ->
     Path = els_uri:path(Uri),
     {ok, Text} = file:read_file(Path),
-    Source = app,
     Document = els_dt_document:new(Uri, Text, Source),
     deep_index(Document, true).
 
 -spec deep_index(els_dt_document:item(), boolean()) -> els_dt_document:item().
 deep_index(Document0, UpdateWords) ->
     #{
-        id := Id,
-        uri := Uri,
-        text := Text,
-        source := Source,
-        version := Version
+        text := Text
     } = Document0,
     {ok, POIs} = els_parser:parse(Text),
     Document =
@@ -107,6 +104,18 @@ deep_index(Document0, UpdateWords) ->
             false ->
                 Document0#{pois => POIs}
         end,
+    hook_deep_index(Document),
+    Document.
+
+hook_deep_index(Document) ->
+    #{
+        pois := POIs,
+        id := Id,
+        uri := Uri,
+        text := Text,
+        source := Source,
+        version := Version
+    } = Document,
     case els_dt_document:versioned_insert(Document) of
         ok ->
             index_functions(Id, Uri, POIs, Version),
@@ -120,8 +129,7 @@ deep_index(Document0, UpdateWords) ->
         {error, condition_not_satisfied} ->
             ?LOG_DEBUG("Skip indexing old version [uri=~p]", [Uri]),
             ok
-    end,
-    Document.
+    end.
 
 -spec index_signatures(atom(), uri(), binary(), [els_poi:poi()], version()) -> ok.
 index_signatures(Id, Uri, Text, POIs, Version) ->
@@ -212,7 +220,7 @@ shallow_index(Uri, Text, Source) ->
     case els_dt_document:versioned_insert(Document) of
         ok ->
             #{id := Id, kind := Kind} = Document,
-            els_beam_mfa:check_module(Kind, Id),
+            % els_beam_mfa:check_module(Kind, Id),
             ModuleItem = els_dt_document_index:new(Id, Uri, Kind),
             ok = els_dt_document_index:insert(ModuleItem);
         {error, condition_not_satisfied} ->
@@ -251,7 +259,8 @@ start() ->
 ) -> ok.
 start(Group, Skip, SkipTag, Entries, Source) ->
     Task = fun(Dir, {Succeeded0, Skipped0, Failed0}) ->
-        els_beam_mfa:mark_index(Source),
+        ?V({Source, Dir}),
+        % els_beam_mfa:mark_index(Source),
         {Su, Sk, Fa} = index_dir(Dir, Skip, SkipTag, Source),
         {Succeeded0 + Su, Skipped0 + Sk, Failed0 + Fa}
     end,
@@ -278,7 +287,7 @@ start(Group, Skip, SkipTag, Entries, Source) ->
                     "(succeeded: ~p, skipped: ~p, failed: ~p, duration: ~p ms)",
                     [Group, Succeeded, Skipped, Failed, Duration]
                 ),
-                els_beam_mfa:app_finish_index(Source),
+                % els_beam_mfa:app_finish_index(Source),
                 els_telemetry:send_notification(Event)
             end
     },
@@ -296,27 +305,73 @@ remove(Uri) ->
 %%==============================================================================
 %% Internal functions
 %%==============================================================================
+need_index(Uri) ->
+    M = els_uri:module(Uri),
+    not exclude_erl(M).
 
--spec shallow_index(binary(), boolean(), string(), els_dt_document:source()) ->
-    ok | skipped.
-shallow_index(FullName, SkipGeneratedFiles, GeneratedFilesTag, Source) ->
+exclude_erl(M) ->
+    Mchars = atom_to_list(M),
+    ExL = els_config:get(exclude_mfa_module_prefix),
+    Pred = fun(Ex) ->
+        match_prefix(Ex, Mchars)
+    end,
+    lists:any(Pred, ExL).
+
+match_prefix([], _) ->
+    true;
+match_prefix([Char|T1], [Char|T2]) ->
+    match_prefix(T1, T2);
+match_prefix(_, _) ->
+    false.
+
+% -spec shallow_index(binary(), boolean(), string(), els_dt_document:source()) ->
+%     ok | skipped.
+% shallow_index(FullName, SkipGeneratedFiles, GeneratedFilesTag, Source) ->
+%     Uri = els_uri:uri(FullName),
+%     case els_beam_mfa:not_exclude(els_uri:module(Uri)) of
+%         true ->
+%             {ok, Text} = file:read_file(FullName),
+%             case SkipGeneratedFiles andalso is_generated_file(Text, GeneratedFilesTag) of
+%                 true ->
+%                     skipped;
+%                 false ->
+%                     shallow_index(Uri, Text, Source)
+%             end;
+%         _ ->
+%             skipped
+%     end.
+
+init_index(FullName, _SkipGeneratedFiles, _GeneratedFilesTag, Source = app, _Dir) ->
     Uri = els_uri:uri(FullName),
-    ?LOG_DEBUG(
-        "Shallow indexing file. [filename=~s] [uri=~s]",
-        [FullName, Uri]
-    ),
-    case els_beam_mfa:not_exclude(els_uri:module(Uri)) of
+    case need_index(Uri) of
         true ->
-            {ok, Text} = file:read_file(FullName),
-            case SkipGeneratedFiles andalso is_generated_file(Text, GeneratedFilesTag) of
-                true ->
-                    ?LOG_DEBUG("Skip indexing for generated file ~p", [Uri]),
+            case els_dt_document:lookup(Uri) of
+                {ok, [_Document]} -> % 会重复遍历
                     skipped;
-                false ->
-                    shallow_index(Uri, Text, Source)
-            end;
-        _ ->
+                _ ->
+                    LastModified = els_uri:last_modified(Uri),
+                    case els_mnesia:get_lastest_docment(Uri, LastModified) of
+                        true ->
+                            % hook_deep_index(Document);
+                            {ok, Text} = file:read_file(FullName),
+                            shallow_index(Uri, Text, Source);
+                        false ->
+                            Document = force_deep_index(Uri, Source),
+                            els_mnesia:hook_deep_index(Uri, LastModified, Document)
+                    end
+            end,
+            ok;
+        false ->
             skipped
+    end;
+init_index(FullName, SkipGeneratedFiles, GeneratedFilesTag, Source, _Dir) ->
+    {ok, Text} = file:read_file(FullName),
+    case SkipGeneratedFiles andalso is_generated_file(Text, GeneratedFilesTag) of
+        true ->
+            skipped;
+        false ->
+            Uri = els_uri:uri(FullName),
+            shallow_index(Uri, Text, Source)
     end.
 
 -spec index_dir(string(), els_dt_document:source()) ->
@@ -324,16 +379,15 @@ shallow_index(FullName, SkipGeneratedFiles, GeneratedFilesTag, Source) ->
 index_dir(Dir, Source) ->
     Skip = els_config_indexing:get_skip_generated_files(),
     SkipTag = els_config_indexing:get_generated_files_tag(),
-    % ?LOG_ERROR("ssssssssss:~p,~p", [Skip, SkipTag]),
     index_dir(Dir, Skip, SkipTag, Source).
 
 -spec index_dir(string(), boolean(), string(), els_dt_document:source()) ->
     {non_neg_integer(), non_neg_integer(), non_neg_integer()}.
 index_dir(Dir, Skip, SkipTag, Source) ->
-    ?LOG_DEBUG("Indexing directory. [dir=~s]", [Dir]),
     F = fun(FileName, {Succeeded, Skipped, Failed}) ->
         BinaryName = els_utils:to_binary(FileName),
-        case shallow_index(BinaryName, Skip, SkipTag, Source) of
+        % case shallow_index(BinaryName, Skip, SkipTag, Source) of
+        case init_index(BinaryName, Skip, SkipTag, Source, Dir) of
             ok -> {Succeeded + 1, Skipped, Failed};
             skipped -> {Succeeded, Skipped + 1, Failed}
         end
