@@ -1336,6 +1336,15 @@ record_fields_with_var(Document, RecordName) ->
                 end,
             [
                 #{
+                    label => atom_to_label(all_fields),
+                    kind => ?COMPLETION_ITEM_KIND_FIELD,
+                    insertText => format_all_record_field_with_var(Fields, <<>>, 1),
+                    insertTextFormat => Format
+                }
+            ]
+                ++
+            [
+                #{
                     label => atom_to_label(Name),
                     kind => ?COMPLETION_ITEM_KIND_FIELD,
                     insertText => format_record_field_with_var(Name, SnippetSupport),
@@ -1352,6 +1361,21 @@ format_record_field_with_var(Name, true) ->
     <<Label/binary, " = ${1:", Var/binary, "}">>;
 format_record_field_with_var(Name, false) ->
     atom_to_label(Name).
+
+format_all_record_field_with_var([], Text, _Index) ->
+    Text;
+format_all_record_field_with_var([Name|T], Text, Index) ->
+    Label = atom_to_label(Name),
+    Var = els_utils:camel_case(Label),
+    case T of
+        [] ->
+            End = <<>>;
+        _ ->
+            End = <<", ">>
+    end,
+    NewText = <<Text/binary, Label/binary, " = ${", (integer_to_binary(Index))/binary, ":", Var/binary,"}", End/binary>>,
+    format_all_record_field_with_var(T, NewText, Index+1).
+
 
 -spec find_record_definition(els_dt_document:item(), atom()) -> [els_poi:poi()].
 find_record_definition(Document, RecordName) ->

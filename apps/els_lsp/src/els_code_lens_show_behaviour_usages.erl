@@ -22,7 +22,7 @@ command(_Document, POI, _State) ->
 
 -spec is_default() -> boolean().
 is_default() ->
-    true.
+    false.
 
 -spec precondition(els_dt_document:item()) -> boolean().
 precondition(Document) ->

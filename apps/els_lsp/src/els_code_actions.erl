@@ -789,8 +789,8 @@ format_args(Document, Arity, Range) ->
     end.
 
 -spec guess_indentation([binary()]) -> pos_integer().
-guess_indentation([]) ->
-    2;
+% guess_indentation([]) ->
+%     2;
 guess_indentation([A, B | Rest]) ->
     ACount = count_leading_spaces(A, 0),
     BCount = count_leading_spaces(B, 0),
@@ -799,7 +799,9 @@ guess_indentation([A, B | Rest]) ->
             N;
         {_, _} ->
             guess_indentation([B | Rest])
-    end.
+    end;
+guess_indentation(_) -> %% <<"    ">>
+    2.
 
 -spec count_leading_spaces(binary(), non_neg_integer()) -> non_neg_integer().
 count_leading_spaces(<<>>, _Acc) ->
