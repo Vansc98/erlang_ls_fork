@@ -306,7 +306,6 @@ find_completions(
     TriggerKind =:= ?COMPLETION_TRIGGER_KIND_FOR_INCOMPLETE_COMPLETIONS
 ->
     Tokens = lists:reverse(els_text:tokens(Prefix)),
-    % ?LOG_ERROR("Prefix:~p, Tokens:~p", [Prefix, Tokens]),
     case Tokens of
         %% Check for "[...] fun atom:"
         [{':', _}, {atom, _, Module}, {'fun', _} | _] ->
@@ -315,12 +314,12 @@ find_completions(
         [{atom, _, _}, {':', _}, {atom, _, Module}, {'fun', _} | _] ->
             exported_definitions(Module, function, arity_only);
         %% Check for "[...] atom:"
-        [{':', _}, {atom, _, Module} | _] = Tokens ->
+        [{':', _}, {atom, _, Module} | _] ->
             {ItemFormat, POIKind} =
                 completion_context(Document, Line, Column, Tokens),
             exported_definitions(Module, POIKind, ItemFormat);
         %% Check for "[...] atom:atom"
-        [{atom, _, _}, {':', _}, {atom, _, Module} | _] = Tokens ->
+        [{atom, _, _}, {':', _}, {atom, _, Module} | _] ->
             {ItemFormat, POIKind} =
                 completion_context(Document, Line, Column, Tokens),
             exported_definitions(Module, POIKind, ItemFormat);
@@ -359,7 +358,6 @@ find_completions(
             binary_type_specifiers(Prefix);
         %% Check for "[...] -"
         [{'/', _} | _] ->
-            Tokens = lists:reverse(els_text:tokens(Prefix)),
             case in_binary_heuristic(Tokens) of
                 true ->
                     binary_type_specifier();
@@ -405,26 +403,26 @@ find_completions(
             bifs(function, ItemFormat = arity_only) ++
                 definitions(Document, function, ItemFormat = arity_only);
         %% Check for "| atom"
-        [{atom, _, Name}, {'|', _} | _] = Tokens ->
+        [{atom, _, Name}, {'|', _} | _] ->
             {ItemFormat, _POIKind} =
                 completion_context(Document, Line, Column, Tokens),
             complete_type_definition(Document, Name, ItemFormat);
         %% Check for "::"
-        [{'::', _} | _] = Tokens ->
+        [{'::', _} | _] ->
             {ItemFormat, _POIKind} =
                 completion_context(Document, Line, Column, Tokens),
             complete_type_definition(Document, '', ItemFormat);
         %% Check for ":: atom"
-        [{atom, _, Name}, {'::', _} | _] = Tokens ->
+        [{atom, _, Name}, {'::', _} | _] ->
             {ItemFormat, _POIKind} =
                 completion_context(Document, Line, Column, Tokens),
             complete_type_definition(Document, Name, ItemFormat);
         %% Check for "[...] atom"
-        [{atom, _, Name} | _] = Tokens ->
+        [{atom, _, Name} | _] ->
             % ?LOG_ERROR("Prefix:~p, Name:~p", [Prefix, Name]),
             complete_atom(Name, Tokens, Opts);
         %% Treat keywords as atom completion
-        [{Name, _} | _] = Tokens ->
+        [{Name, _} | _] ->
             case lists:member(Name, keywords()) of
                 true ->
                     % ?LOG_ERROR("Prefix:~p, Name:~p", [Prefix, Name]),
@@ -434,7 +432,7 @@ find_completions(
             end;
         _ ->
             ?LOG_ERROR(
-                "No completion found. [prefix=~p] [tokens=~p]",
+                "代码无法触发补全. [prefix=~p] [tokens=~p]",
                 [Prefix, Tokens]
             ),
             []
@@ -526,7 +524,7 @@ complete_atom(Name, Tokens, Opts) ->
             case complete_record_field(Opts, Tokens) of
                 [] ->
                     EditMod = maps:get(id, Document, 'NOT_FOUND_MODULE'),
-                    ?LOG_ERROR("Module:~p, Name:~p", [EditMod, Name]),
+                    % ?LOG_ERROR("Module:~p, Name:~p", [EditMod, Name]),
                     WorkList = 
                         [
                             {keywords, fun() -> keywords(POIKind, ItemFormat) end},
@@ -1336,8 +1334,8 @@ record_fields_with_var(Document, RecordName) ->
                 end,
             [
                 #{
-                    label => atom_to_label(all_fields),
-                    kind => ?COMPLETION_ITEM_KIND_FIELD,
+                    label => <<"{all_fields}">>,
+                    kind => ?COMPLETION_ITEM_KIND_CONSTRUCTOR,
                     insertText => format_all_record_field_with_var(Fields, <<>>, 1),
                     insertTextFormat => Format
                 }

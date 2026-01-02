@@ -63,7 +63,7 @@ handle_cast(Msg, State) ->
     handle(Msg),
     {noreply, State}.
 handle_info(loop, State) ->
-    erlang:send_after(500, self(), loop),
+    % erlang:send_after(1000, self(), loop),
     {noreply, State};
 handle_info(Info, State) ->
     handle(Info),

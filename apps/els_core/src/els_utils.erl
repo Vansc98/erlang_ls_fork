@@ -550,7 +550,13 @@ base64_decode_term(Base64) ->
 camel_case(Str0) ->
     %% Remove ''
     Str = string:trim(Str0, both, "'"),
-    Words = [string:titlecase(Word) || Word <- string:lexemes(Str, "_")],
+    Words = [case Word of
+                <<"id">> ->
+                    <<"ID">>;
+                _ ->
+                    string:titlecase(Word)
+            end
+            || Word <- string:lexemes(Str, "_")],
     iolist_to_binary(Words).
 
 -spec levenshtein_distance(binary(), binary()) -> integer().

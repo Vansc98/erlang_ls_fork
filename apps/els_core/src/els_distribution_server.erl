@@ -68,8 +68,6 @@ start_distribution(Name) ->
 -spec start_distribution(atom(), atom(), atom(), shortnames | longnames) ->
     ok | {error, any()}.
 start_distribution(Name, RemoteNode, Cookie, NameType) ->
-    ?LOG_INFO("Enable distribution [name=~p]", [Name]),
-    ?LOG_ERROR("Name:~p, NameType:~p, RemoteNode:~p, Cookie:~p", [Name, NameType, RemoteNode, Cookie]),
     case net_kernel:start([Name, NameType]) of
         {ok, _Pid} ->
             case Cookie of
@@ -79,8 +77,7 @@ start_distribution(Name, RemoteNode, Cookie, NameType) ->
                     erlang:set_cookie(RemoteNode, CustomCookie)
             end,
             els_mnesia:start_distribution(),
-            ?LOG_INFO("Distribution enabled [name=~p]", [Name]),
-            ?LOG_ERROR("node:~p, cookie:~p, remsh:~p", [node(), erlang:get_cookie(), "werl -remsh "++atom_to_list(node())]),
+            % ?LOG_ERROR("ErlangLs分布式节点启动成功 - Name:~p, NameType:~p, Cookie:~p", [node(), NameType, erlang:get_cookie()]),
             ok;
         {error, {already_started, _Pid}} ->
             ?LOG_INFO("Distribution already enabled [name=~p]", [Name]),
@@ -217,8 +214,8 @@ wait_connect_and_monitor(Node, Type, Attempts, MaxAttempts) ->
 %% @doc Ensure the Erlang Port Mapper Daemon (EPMD) is up and running
 -spec ensure_epmd() -> ok.
 ensure_epmd() ->
-    0 = els_utils:cmd("epmd", ["-daemon"]),
     os:cmd("erl -name erlang_ls_ensure_epmd@127.0.0.1 -s c q"),
+    % 0 = els_utils:cmd("epmd", ["-daemon"]),
     ok.
 
 -spec node_name(binary(), binary()) -> atom().
@@ -227,7 +224,6 @@ node_name(Prefix, Name0) ->
     % Int = erlang:phash2(erlang:timestamp()),
     RootUri = els_config:get(root_uri),
     Int = erlang:phash2(RootUri),
-    ?LOG_ERROR("RootUri", [RootUri]),
     Id = lists:flatten(io_lib:format("~s_~s_~p", [Prefix, Name, Int])),
     els_utils:compose_node_name(Id, els_config_runtime:get_name_type()).
 
