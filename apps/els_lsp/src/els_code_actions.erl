@@ -221,10 +221,22 @@ add_include_file(Uri, Range, Kind, Name, Id) ->
             BeforeRange
         )
     of
+        % [] when Kind == record -> 
+        %     [
+        %         make_edit_action(
+        %             Uri,
+        %             <<"Add -include(\"", Path/binary, "\")">>,
+        %             ?CODE_ACTION_KIND_QUICKFIX,
+        %             <<"-include(\"", Path/binary, "\").\n">>,
+        %             els_protocol:range(#{to => {3, 1}, from => {4, 1}})
+        %         )
+        %      || Path <- MPaths
+        %     ];
         [] ->
             [];
         POIs ->
-            #{range := #{to := {Line, _}}} = lists:last(els_poi:sort(POIs)),
+            MPaths = els_mnesia:completion({code_action, add_include_file, {Uri, Range, Kind, Name, Id}}),
+            #{range := #{to := {Line, _}}} = lists:last(els_poi:sort(POIs)),?V(Line),
             [
                 make_edit_action(
                     Uri,
@@ -234,6 +246,17 @@ add_include_file(Uri, Range, Kind, Name, Id) ->
                     els_protocol:range(#{to => {Line + 1, 1}, from => {Line + 1, 1}})
                 )
              || Path <- Paths
+            ] 
+                ++
+            [
+                make_edit_action(
+                    Uri,
+                    <<"Add -include(\"", Path/binary, "\")">>,
+                    ?CODE_ACTION_KIND_QUICKFIX,
+                    <<"-include(\"", Path/binary, "\").\n">>,
+                    els_protocol:range(#{to => {Line + 1, 1}, from => {Line + 1, 1}})
+                )
+             || Path <- MPaths
             ]
     end.
 

@@ -19,7 +19,9 @@
     deep_index_time = undefined,
     basename = undefined,
     prefix = "",
-    fa_list = [] %% r_fa
+    fa_list = [], %% r_fa
+    defines = [],
+    records = #{}
 }).
 -record(r_fa, {
     fa = {f, 0},

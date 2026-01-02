@@ -115,6 +115,10 @@ get_lastest_docment(Uri, LastModified) ->
             false
     end.
 hook_deep_index(Uri, LastModified, Document) ->
+    POIs = els_dt_document:pois(Document, [record_def_field]),
+    Records = index_records(POIs, undefined, [], #{}),
+    Defines0 = els_dt_document:pois(Document, [define]),
+    Defines = [DefineName || #{id := DefineName} <- Defines0],
     case filename:extension(Uri) of
         <<".erl">> ->
             FaItems = els_completion_provider:definitions(Document, function, args, true),
@@ -125,6 +129,8 @@ hook_deep_index(Uri, LastModified, Document) ->
                             type = erl,
                             last_modified = LastModified,
                             basename = M,
+                            records = Records,
+                            defines = Defines,
                             fa_list = [item2rfa(I) || I <- FaItems],
                             prefix = MChars
                         },
@@ -133,12 +139,29 @@ hook_deep_index(Uri, LastModified, Document) ->
             Ruri = #r_uri{
                             uri = Uri,
                             type = hrl,
+                            last_modified = LastModified,
                             basename = filename:basename(Uri),
-                            last_modified = LastModified
+                            records = Records,
+                            defines = Defines
                         },
             mnesia:dirty_write(r_uri, Ruri);
         _ ->
             ok
+    end.
+
+index_records([], undefined, _Fields, Records) ->
+    Records;
+index_records([], RecordName0, Fields, Records) ->
+    Records#{RecordName0 => lists:reverse(Fields)};
+index_records([#{id := {RecordName, FieldName}}|T], undefined, _Fields, Records) ->
+    index_records(T, RecordName, [FieldName], Records);
+index_records([#{id := {RecordName, FieldName}}|T], RecordName0, Fields, Records) ->
+    case RecordName == RecordName0 of
+        true ->
+            Fields1 = [FieldName|Fields],
+            index_records(T, RecordName, Fields1, Records);
+        false ->
+            index_records(T, RecordName, [FieldName], Records#{RecordName0 => lists:reverse(Fields)})
     end.
 
 item2rfa(#{data := #{<<"module">> := M,<<"function">> := F,<<"arity">> := A}, insertText := FaText}) ->
@@ -178,6 +201,40 @@ mfa_detail([H|T], Detail) ->
 mfa_detail([], Detail) ->
     lists:reverse(Detail).
 
+completion({code_action, add_include_file, {_Uri, _Range, Kind, Name, _Id}}) ->
+    case Kind of
+        record ->
+            Function = fun(R, Acc) ->
+                case R#r_uri.type of
+                    hrl ->
+                        case maps:get(Name, R#r_uri.records, undefined) of
+                            undefined ->
+                                Acc;
+                            _ ->
+                                [R#r_uri.basename| Acc]
+                        end;
+                    _ ->
+                        Acc
+                end
+            end;
+        define ->
+            Function = fun(R, Acc) ->
+                case R#r_uri.type of
+                    hrl ->
+                        case lists:member(Name, R#r_uri.defines) of
+                            false ->
+                                Acc;
+                            _ ->
+                                [R#r_uri.basename| Acc]
+                        end;
+                    _ ->
+                        Acc
+                end
+            end;
+        _ ->
+            Function = fun(_R, _Acc) -> [] end
+    end,
+    ets:foldl(Function, [], r_uri);
 completion({hrl_file}) ->
     Function = fun(R, Acc) ->
         case R#r_uri.type of
@@ -213,7 +270,6 @@ completion({function, args, EditMod, NameBinary, _Document, _Line}) ->
     % {MFAItems, FAITems} = mnesia:foldl(Function, {[], []}, r_uri),
     % ?V({POIKind, ItemFormat, EditMod, NameBinary, length(MFAItems)}),
     {mfa, MFAItems, FAITems};
-
 completion({any, args, _EditMod, _NameBinary, Document, Line}) ->
     L = els_completion_provider:attributes(Document, Line),
     [case maps:get(label, Item, undefined) of
@@ -226,21 +282,29 @@ completion({any, args, _EditMod, _NameBinary, Document, Line}) ->
     || Item <- L];
 completion({POIKind, ItemFormat, _EditMod, _NameBinary, _Document}) ->
     ?V({POIKind, ItemFormat}),
+    [];
+completion(Msg) ->
+    ?V(Msg),
     [].
 
 mfa_label(R, RemainPrefix) ->
     [#{label => FA#r_fa.mfa_label,
         insertText => FA#r_fa.mfa_text,
         % detail => <<"Index MFA">>,
-        documentation => FA#r_fa.documentation,
+        % documentation => FA#r_fa.documentation,
+        documentation => #{kind => <<"markdown">>,
+                        value => <<"```erlang\n", (FA#r_fa.documentation)/binary, "\n```">>
+                        },
         kind => ?COMPLETION_ITEM_KIND_FUNCTION,
         insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
     }|| FA <- R#r_uri.fa_list, match_prefix(RemainPrefix, FA#r_fa.prefix) == true].
 fa_label(R) ->
     [#{label => FA#r_fa.mfa_label,
         insertText => FA#r_fa.fa_text,
-        % detail => <<"Index FA">>,
-        documentation => FA#r_fa.documentation,
+        % documentation => FA#r_fa.documentation,
+        documentation => #{kind => <<"markdown">>,
+                        value => <<"```erlang\n", (FA#r_fa.documentation)/binary, "\n```">>
+                        },
         kind => ?COMPLETION_ITEM_KIND_FUNCTION,
         insertTextFormat => ?INSERT_TEXT_FORMAT_SNIPPET
     }|| FA <- R#r_uri.fa_list].
