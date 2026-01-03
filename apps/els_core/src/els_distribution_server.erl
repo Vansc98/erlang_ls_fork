@@ -18,6 +18,7 @@
     rpc_call/3,
     rpc_call/4,
     node_name/2,
+    node_int/0,
     normalize_node_name/1
 ]).
 
@@ -222,10 +223,14 @@ ensure_epmd() ->
 node_name(Prefix, Name0) ->
     Name = normalize_node_name(Name0),
     % Int = erlang:phash2(erlang:timestamp()),
-    RootUri = els_config:get(root_uri),
-    Int = erlang:phash2(RootUri),
+    Int = node_int(),
     Id = lists:flatten(io_lib:format("~s_~s_~p", [Prefix, Name, Int])),
     els_utils:compose_node_name(Id, els_config_runtime:get_name_type()).
+
+node_int() ->
+    % RootUri = els_config:get(root_uri),
+    {ok, CurrentDir} = file:get_cwd(),
+    erlang:phash2(CurrentDir).
 
 -spec normalize_node_name(string() | binary()) -> string().
 normalize_node_name(Name) ->

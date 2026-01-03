@@ -29,7 +29,7 @@ is_server() ->
     get(server_flag) == ?SERVER.
 dir() ->
     {ok, CurrentDir} = file:get_cwd(),
-    Dir = filename:join([CurrentDir, ".vscode/erlang_ls/mnesia"]),
+    Dir = filename:join([CurrentDir, ".erlang_ls/mnesia", integer_to_list(els_distribution_server:node_int())]),
     filelib:ensure_dir(Dir++"/a"),
     Dir.
 
