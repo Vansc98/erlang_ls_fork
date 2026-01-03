@@ -236,7 +236,7 @@ add_include_file(Uri, Range, Kind, Name, Id) ->
             [];
         POIs ->
             MPaths = els_mnesia:completion({code_action, add_include_file, {Uri, Range, Kind, Name, Id}}),
-            #{range := #{to := {Line, _}}} = lists:last(els_poi:sort(POIs)),?V(Line),
+            #{range := #{to := {Line, _}}} = lists:last(els_poi:sort(POIs)),
             [
                 make_edit_action(
                     Uri,

@@ -14,6 +14,7 @@
 -export([hook_deep_index/3]).
 -export([completion/1]).
 -export([hook_file_save/1]).
+-export([get_uri/1]).
 -record(state, {
 }).
 
@@ -54,6 +55,11 @@ get_val(Key, _IsMnesia = false) ->
         [] ->
             undefined
     end.
+
+get_uri(Uri) when is_binary(Uri) ->
+    mnesia:dirty_read(r_uri, Uri);
+get_uri(M) when is_atom(M) ->
+    mnesia:dirty_select(r_uri, [{#r_uri{basename = M, _ = '_'}, [], ['$_']}]).
 
 handle_call(stop, _From, State) ->
     {stop, normal, stopped, State};
@@ -313,5 +319,7 @@ match_prefix([], _) ->
     true;
 match_prefix([Char|T1], [Char|T2]) ->
     match_prefix(T1, T2);
+match_prefix([Char|T1], [_|T2]) ->
+    match_prefix([Char|T1], T2);
 match_prefix(RemainPrefix, _) ->
     RemainPrefix.
