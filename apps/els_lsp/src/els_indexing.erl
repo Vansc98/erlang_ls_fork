@@ -344,20 +344,20 @@ init_index(FullName, _SkipGeneratedFiles, _GeneratedFilesTag, Source = app, _Dir
     Uri = els_uri:uri(FullName),
     case need_index(Uri) of
         true ->
-            case els_dt_document:lookup(Uri) of
-                {ok, [_Document]} -> % 会重复遍历
-                    skipped;
-                _ ->
-                    LastModified = els_uri:last_modified(Uri),
-                    case els_mnesia:get_lastest_docment(Uri, LastModified) of
-                        true ->
-                            % hook_deep_index(Document);
+            LastModified = els_uri:last_modified(Uri),
+            case els_mnesia:get_lastest_docment(Uri, LastModified) of
+                true ->
+                    % hook_deep_index(Document);
+                    case els_utils:lookup_document(Uri) of
+                        {ok, [_Document]} ->
+                            ok;
+                        _ ->
                             {ok, Text} = file:read_file(FullName),
-                            shallow_index(Uri, Text, Source);
-                        false ->
-                            Document = force_deep_index(Uri, Source),
-                            els_mnesia:hook_deep_index(Uri, LastModified, Document)
-                    end
+                            shallow_index(Uri, Text, Source)
+                    end;
+                false ->
+                    Document = force_deep_index(Uri, Source),
+                    els_mnesia:hook_deep_index(Uri, LastModified, Document)
             end,
             ok;
         false ->
