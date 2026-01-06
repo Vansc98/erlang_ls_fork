@@ -437,8 +437,8 @@ find_completions(
             ),
             []
     end;
-find_completions(_Prefix, _TriggerKind, _Opts) ->
-    ?V({_Prefix, _TriggerKind}),
+find_completions(Prefix, TriggerKind, _Opts) ->
+    ?LOG_ERROR("Prefix:~p, TriggeerKind:~p", [Prefix, TriggerKind]),
     [].
 
 -spec list_comprehension_completion_item(els_dt_document:item(), line(), column()) ->
@@ -531,7 +531,7 @@ complete_atom(Name, Tokens, Opts) ->
                             {bifs, fun() -> bifs(POIKind, ItemFormat) end},
                             {atoms, fun() -> atoms(Document, NameBinary) end},
                             {all_record_fields, fun() -> all_record_fields(Document, NameBinary) end},
-                            {modules, fun() -> modules(NameBinary) end},
+                            % {modules, fun() -> modules(NameBinary) end},
                             {definitions, fun() -> 
                                             Ds = definitions(Document, POIKind, ItemFormat),
                                             % POIKind == function andalso ItemFormat == args andalso els_beam_mfa:update_items(Ds),
@@ -542,7 +542,8 @@ complete_atom(Name, Tokens, Opts) ->
                             % {'els_beam_mfa:get_all_completion', fun() -> els_beam_mfa:get_all_completion({EditMod, NameBinary, Document}) end}
                         ],
                     % spawn_test(WorkList),
-                    spawn_work(WorkList, EditMod);
+                    L = spawn_work(WorkList, EditMod),
+                    L;
                     % keywords(POIKind, ItemFormat) ++
                     %     bifs(POIKind, ItemFormat) ++
                     %     atoms(Document, NameBinary) ++
@@ -557,7 +558,8 @@ complete_atom(Name, Tokens, Opts) ->
 
 spawn_work(WorkList, EditMod) ->
     Sup = self(),
-    [spawn_link(fun() -> work_process(Sup, Work) end) || Work <- WorkList],
+    [spawn(fun() -> work_process(Sup, Work) end) || Work <- WorkList],
+    % [spawn_link(fun() -> work_process(Sup, Work) end) || Work <- WorkList],
     spawn_work_receive(WorkList, EditMod, [], []).
 
 spawn_work_receive([], _EditMod, Items, FAs) ->
@@ -587,13 +589,14 @@ spawn_work_receive(WorkList0, EditMod, Items0, FAs) ->
             WorkList = lists:keydelete(Name, 1, WorkList0),
             Items = AddItems ++ Items0,
             spawn_work_receive(WorkList, EditMod, Items, FAs)
-    after 150 ->
+    after 120 ->
             ?LOG_ERROR("Work Timeout:~p, ~p", [EditMod, [element(1, Work) || Work <- WorkList0]]),
             spawn_work_receive([], EditMod, Items0, FAs)
     end.
 
 work_process(SupPid, {Name, Fun}) ->
     Items = Fun(),
+    % ?V({Name, erlang:is_process_alive(SupPid), SupPid}),
     SupPid ! {Name, Items}.
 
 % spawn_test(List) ->

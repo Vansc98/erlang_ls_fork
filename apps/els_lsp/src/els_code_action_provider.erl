@@ -58,6 +58,7 @@ make_code_actions(
                 {"record (.*) undefined", fun els_code_actions:add_include_lib_record/4},
                 {"record (.*) undefined", fun els_code_actions:define_record/4},
                 {"record (.*) undefined", fun els_code_actions:suggest_record/4},
+                {"fun guard contains unknown record type (.*)", fun els_code_actions:add_include_lib_record/4},
                 {"field (.*) undefined in record (.*)",
                     fun els_code_actions:suggest_record_field/4},
                 {"Module name '(.*)' does not match file name '(.*)'",

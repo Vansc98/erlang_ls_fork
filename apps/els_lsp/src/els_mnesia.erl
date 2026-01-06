@@ -10,9 +10,11 @@
 -export([call/1, cast/1]).
 -export([set_val/2, set_val/3, get_val/1, get_val/2]).
 -export([dir/0]).
+-export([root_dir/0]).
 -export([get_lastest_docment/2]).
 -export([hook_deep_index/3]).
 -export([completion/1]).
+-export([hook_file_open/2]).
 -export([hook_file_save/1]).
 -export([get_uri/1]).
 -record(state, {
@@ -27,9 +29,11 @@ init(_Args) ->
     {ok, #state{}}.
 is_server() ->
     get(server_flag) == ?SERVER.
-dir() ->
+root_dir() ->
     {ok, CurrentDir} = file:get_cwd(),
-    Dir = filename:join([CurrentDir, ".erlang_ls/mnesia", integer_to_list(els_distribution_server:node_int())]),
+    filename:join([CurrentDir, ".erlang_ls"]).
+dir() ->
+    Dir = filename:join([root_dir(), "mnesia", integer_to_list(els_distribution_server:node_int())]),
     filelib:ensure_dir(Dir++"/a"),
     Dir.
 
@@ -181,8 +185,32 @@ item2rfa(#{data := #{<<"module">> := M,<<"function">> := F,<<"arity">> := A}, in
         mfa_text = unicode:characters_to_binary(io_lib:format("~p:~s", [M, FaText]))
     }.
 
+
+hook_file_open(Uri, Text) ->
+    % els_background_job:new(#{
+    %     task => fun(Uri, _State) ->
+            Document = els_indexing:force_deep_index(Uri, app, Text),
+            case els_indexing:need_index(Uri) of
+                true ->
+                    LastModified = els_uri:last_modified(Uri),
+                    case mnesia:dirty_read(r_uri, Uri) of
+                        [#r_uri{last_modified = LastModified}] ->
+                            ok;
+                        _ ->
+                            hook_deep_index(Uri, LastModified, Document)
+                    end;
+                _ ->
+                    ok
+            end.
+    %     end,
+    %     entries => [Uri0],
+    %     title => <<"Indexing ", Uri0/binary>>
+    % }).
+
 hook_file_save(Uri0) ->
-    Config = #{
+    els_indexing:need_index(Uri0) 
+    andalso
+    els_background_job:new(#{
         task => fun(Uri, _State) ->
             LastModified = els_uri:last_modified(Uri),
             case mnesia:dirty_read(r_uri, Uri) of
@@ -195,8 +223,7 @@ hook_file_save(Uri0) ->
         end,
         entries => [Uri0],
         title => <<"Indexing ", Uri0/binary>>
-    },
-    els_background_job:new(Config).
+    }).
 
 mfa_detail([$$, ${, _, $:|T], Detail) ->
     mfa_detail(T, Detail);
@@ -253,9 +280,14 @@ completion({hrl_file}) ->
     ets:foldl(Function, [], r_uri);
 completion({function, args, EditMod, NameBinary, _Document, _Line}) ->
     Prefix = binary_to_list(NameBinary),
-    Function = fun(R, {MFAcc, FAcc}) ->
+    Function = fun(R, {Acc, FAcc}) ->
         case R#r_uri.type of
             erl ->
+                MItem = #{
+                    label => atom_to_binary(R#r_uri.basename),
+                    kind => ?COMPLETION_ITEM_KIND_MODULE,
+                    insertTextFormat => ?INSERT_TEXT_FORMAT_PLAIN_TEXT
+                },
                 case match_prefix(Prefix, R#r_uri.prefix) of
                     true ->
                         case R#r_uri.basename of
@@ -264,12 +296,12 @@ completion({function, args, EditMod, NameBinary, _Document, _Line}) ->
                             _ ->
                                 FAcc1 = FAcc
                         end,
-                        {mfa_label(R, []) ++ MFAcc, FAcc1};
+                        {mfa_label(R, []) ++ [MItem|Acc], FAcc1};
                     RemainPrefix ->
-                        {mfa_label(R, RemainPrefix) ++ MFAcc, FAcc}
+                        {mfa_label(R, RemainPrefix) ++ [MItem|Acc], FAcc}
                 end;
             _ ->
-                {MFAcc, FAcc}
+                {Acc, FAcc}
         end
     end,
     {MFAItems, FAITems} = ets:foldl(Function, {[], []}, r_uri),

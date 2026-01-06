@@ -51,13 +51,14 @@ did_open(Params) ->
         <<"textDocument">> := #{
             <<"uri">> := Uri0,
             <<"text">> := Text,
-            <<"version">> := Version
+            <<"version">> := _Version
         }
     } = Params,
     Uri = els_uri:fix_uri(Uri0),
-    Document = els_dt_document:new(Uri, Text, _Source = app, Version),
-    els_dt_document:insert(Document),
-    els_indexing:deep_index(Document, _UpdateWords = false),
+    % Document = els_dt_document:new(Uri, Text, _Source = app, Version),
+    % els_dt_document:insert(Document),
+    % els_indexing:deep_index(Document, _UpdateWords = false),
+    els_mnesia:hook_file_open(Uri, Text),
     ok.
 
 -spec did_save(map()) -> ok.

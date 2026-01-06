@@ -41,8 +41,8 @@
             "dependsOn": [
                 "生成 bin"
             ],
-            // "command": "code D:\\linux_data\\qt01\\",
-            "command": "code D:\\Work\\company\\yymj\\dev_yymj_gh",
+            "command": "code D:\\linux_data\\qt01\\",
+            // "command": "code D:\\Work\\company\\yymj\\dev_yymj_gh",
             "group": {
                 "build": true
             }

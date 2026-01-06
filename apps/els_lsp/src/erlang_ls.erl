@@ -124,10 +124,11 @@ patch_logging() ->
 
 -spec log_root() -> string().
 log_root() ->
-    {ok, LogDir} = application:get_env(els_core, log_dir),
-    {ok, CurrentDir} = file:get_cwd(),
-    Dirname = filename:basename(CurrentDir),
-    filename:join([LogDir, Dirname]).
+    % {ok, LogDir} = application:get_env(els_core, log_dir),
+    % {ok, CurrentDir} = file:get_cwd(),
+    % Dirname = filename:basename(CurrentDir),
+    % filename:join([LogDir, Dirname]).
+    filename:join([els_mnesia:root_dir(), "log"]).
 
 -spec cache_root() -> file:name().
 cache_root() ->

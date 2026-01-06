@@ -202,5 +202,9 @@ line_starts(Text) ->
 pos([], {_LineNum, _ColumnNum}) ->
     0;
 pos(LineStarts, {LineNum, ColumnNum}) ->
-    {LinePos, _} = lists:nth(LineNum, LineStarts),
-    LinePos + ColumnNum.
+    case catch lists:nth(LineNum, LineStarts) of
+        {LinePos, _} when is_integer(LinePos) ->
+            LinePos + ColumnNum;
+        _ ->
+            0
+    end.

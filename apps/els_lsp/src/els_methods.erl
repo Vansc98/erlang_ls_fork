@@ -234,8 +234,9 @@ textdocument_didopen(Params, #{open_buffers := OpenBuffers} = State) ->
 
 -spec textdocument_didchange(params(), els_server:state()) -> result().
 textdocument_didchange(Params, State0) ->
-    #{<<"textDocument">> := #{<<"uri">> := Uri}} = Params,
-    State = cancel_request_by_uri(Uri, State0),
+    #{<<"textDocument">> := #{<<"uri">> := _Uri}} = Params,
+    % State = cancel_request_by_uri(Uri, State0),
+    State = State0,
     Provider = els_text_synchronization_provider,
     Request = {did_change, Params},
     _ = els_provider:handle_request(Provider, Request),
@@ -559,18 +560,18 @@ workspace_symbol(Params, State) ->
 %%==============================================================================
 %% Internal Functions
 %%==============================================================================
--spec cancel_request_by_uri(uri(), els_server:state()) -> els_server:state().
-cancel_request_by_uri(Uri, State) ->
-    #{in_progress := InProgress0} = State,
-    Fun = fun({U, Job}) ->
-        case U =:= Uri of
-            true ->
-                els_background_job:stop(Job),
-                false;
-            false ->
-                true
-        end
-    end,
-    InProgress = lists:filtermap(Fun, InProgress0),
-    ?LOG_DEBUG("Cancelling requests by Uri [uri=~p]", [Uri]),
-    State#{in_progress => InProgress}.
+% -spec cancel_request_by_uri(uri(), els_server:state()) -> els_server:state().
+% cancel_request_by_uri(Uri, State) ->
+%     #{in_progress := InProgress0} = State,
+%     Fun = fun({U, Job}) ->
+%         case U =:= Uri of
+%             true ->
+%                 els_background_job:stop(Job),
+%                 false;
+%             false ->
+%                 true
+%         end
+%     end,
+%     InProgress = lists:filtermap(Fun, InProgress0),
+%     ?LOG_DEBUG("Cancelling requests by Uri [uri=~p]", [Uri]),
+%     State#{in_progress => InProgress}.

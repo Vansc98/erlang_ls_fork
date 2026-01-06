@@ -1,0 +1,21 @@
+apps_dirs:
+  - apps
+
+diagnostics:
+  enabled:
+    - bound_var_in_pattern
+    - compiler
+  disabled:
+    - unused_includes
+    - unused_record_fields
+    - crossref
+    - unused_macros
+    - dialyzer
+
+lenses:
+  disabled:
+    - ct-run-test
+    - show-behaviour-usages
+    - function-references
+    - server-info
+    - suggest-spec

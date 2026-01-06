@@ -15,6 +15,9 @@
     remove/1
 ]).
 -export([force_deep_index/1]).
+-export([force_deep_index/2]).
+-export([force_deep_index/3]).
+-export([need_index/1]).
 
 %%==============================================================================
 %% Includes
@@ -87,7 +90,11 @@ force_deep_index(Uri) ->
 force_deep_index(Uri, Source) ->
     Path = els_uri:path(Uri),
     {ok, Text} = file:read_file(Path),
-    Document = els_dt_document:new(Uri, Text, Source),
+    force_deep_index(Uri, Source, Text).
+force_deep_index(Uri, Source, Text) ->
+    #{id := Id, kind := Kind} = Document = els_dt_document:new(Uri, Text, Source),
+    ModuleItem = els_dt_document_index:new(Id, Uri, Kind),
+    ok = els_dt_document_index:insert(ModuleItem),
     deep_index(Document, true).
 
 -spec deep_index(els_dt_document:item(), boolean()) -> els_dt_document:item().
@@ -220,7 +227,6 @@ shallow_index(Uri, Text, Source) ->
     case els_dt_document:versioned_insert(Document) of
         ok ->
             #{id := Id, kind := Kind} = Document,
-            % els_beam_mfa:check_module(Kind, Id),
             ModuleItem = els_dt_document_index:new(Id, Uri, Kind),
             ok = els_dt_document_index:insert(ModuleItem);
         {error, condition_not_satisfied} ->
@@ -305,8 +311,19 @@ remove(Uri) ->
 %% Internal functions
 %%==============================================================================
 need_index(Uri) ->
-    M = els_uri:module(Uri),
-    not exclude_erl(M).
+    case filename:extension(Uri) of
+        <<".hrl">> ->
+            true;
+        <<".erl">> ->
+            M = els_uri:module(Uri),
+            not exclude_erl(M);
+        <<".escript">> ->
+            true;
+        <<".es">> ->
+            true;
+        _ ->
+            false
+    end.
 
 exclude_erl(M) ->
     Mchars = atom_to_list(M),

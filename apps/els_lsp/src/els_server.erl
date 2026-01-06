@@ -42,7 +42,7 @@
 %%==============================================================================
 -include_lib("kernel/include/logger.hrl").
 -include_lib("els_core/include/els_core.hrl").
-
+-include("els_lsp.hrl").
 %%==============================================================================
 %% Macros
 %%==============================================================================
@@ -226,37 +226,38 @@ terminate(_Reason, #{in_progress := InProgress}) ->
 handle_request(
     #{
         <<"method">> := <<"$/cancelRequest">>,
-        <<"params">> := Params
+        <<"params">> := _Params
     },
     State0
 ) ->
-    #{<<"id">> := Id} = Params,
-    #{pending := Pending, in_progress := InProgress} = State0,
-    case lists:keyfind(Id, 1, Pending) of
-        false ->
-            ?LOG_DEBUG(
-                "Trying to cancel not existing request [params=~p]",
-                [Params]
-            ),
-            State0;
-        {RequestId, Job} when RequestId =:= Id ->
-            ?LOG_DEBUG("[SERVER] Cancelling request [id=~p] [job=~p]", [Id, Job]),
-            els_background_job:stop(Job),
-            Error = #{
-                code => ?ERR_REQUEST_CANCELLED,
-                message => <<"Request was cancelled">>
-            },
-            ErrorResponse = els_protocol:error(RequestId, Error),
-            ?LOG_DEBUG(
-                "[SERVER] Sending error response [response=~p]",
-                [ErrorResponse]
-            ),
-            send(ErrorResponse, State0),
-            State0#{
-                pending => lists:keydelete(Id, 1, Pending),
-                in_progress => lists:keydelete(Job, 2, InProgress)
-            }
-    end;
+    % #{<<"id">> := Id} = Params,
+    % #{pending := Pending, in_progress := InProgress} = State0,
+    % case lists:keyfind(Id, 1, Pending) of
+    %     false ->
+    %         ?LOG_DEBUG(
+    %             "Trying to cancel not existing request [params=~p]",
+    %             [Params]
+    %         ),
+    %         State0;
+    %     {RequestId, Job} when RequestId =:= Id ->
+    %         ?LOG_DEBUG("[SERVER] Cancelling request [id=~p] [job=~p]", [Id, Job]),
+    %         els_background_job:stop(Job),
+    %         Error = #{
+    %             code => ?ERR_REQUEST_CANCELLED,
+    %             message => <<"Request was cancelled">>
+    %         },
+    %         ErrorResponse = els_protocol:error(RequestId, Error),
+    %         ?LOG_DEBUG(
+    %             "[SERVER] Sending error response [response=~p]",
+    %             [ErrorResponse]
+    %         ),
+    %         send(ErrorResponse, State0),
+    %         State0#{
+    %             pending => lists:keydelete(Id, 1, Pending),
+    %             in_progress => lists:keydelete(Job, 2, InProgress)
+    %         }
+    % end;
+    State0;
 handle_request(
     #{<<"method">> := _ReqMethod} = Request,
     #{
