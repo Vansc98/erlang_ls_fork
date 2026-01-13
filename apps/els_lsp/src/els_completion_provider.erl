@@ -106,7 +106,6 @@ run_completion_job(Uri, Line, Character, TriggerKind, TriggerCharacter) ->
             ?COMPLETION_TRIGGER_KIND_FOR_INCOMPLETE_COMPLETIONS ->
                 els_text:line(Text, Line, Character)
         end,
-    ?LOG_INFO("Find completions for ~s", [Prefix]),
     Opts = #{
         trigger => TriggerCharacter,
         document => Document,
@@ -431,14 +430,11 @@ find_completions(
                     []
             end;
         _ ->
-            ?LOG_ERROR(
-                "代码无法触发补全. [prefix=~p] [tokens=~p]",
-                [Prefix, Tokens]
-            ),
+            ?LOG_ERROR("代码无法触发补全. [prefix=~ts] [tokens=~p]",[Prefix, Tokens]),
             []
     end;
 find_completions(Prefix, TriggerKind, _Opts) ->
-    ?LOG_ERROR("Prefix:~p, TriggeerKind:~p", [Prefix, TriggerKind]),
+    ?LOG_ERROR("代码无法触发补全Prefix:~ts, TriggeerKind:~p", [Prefix, TriggerKind]),
     [].
 
 -spec list_comprehension_completion_item(els_dt_document:item(), line(), column()) ->

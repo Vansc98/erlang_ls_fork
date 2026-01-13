@@ -262,21 +262,25 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
         )
     ),
     %% Calculated from the above
-    ok = set(apps_paths, apps_paths(RootPath, IncludeDirs++AppsDirs)),
+    AppAndIncludeDirs = deep_dirs(IncludeDirs++AppsDirs, RootPath),
+    ok = set(apps_paths, AppAndIncludeDirs),
     % ok = set(apps_paths, project_paths(RootPath, AppsDirs, false)),
     ok = set(deps_paths, project_paths(RootPath, DepsDirs, false)),
-    ok = set(include_paths, include_paths(RootPath, IncludeDirs, false)),
+    % ok = set(include_paths, include_paths(RootPath, IncludeDirs, false)),
+    ok = set(include_paths, AppAndIncludeDirs),
     ok = set(otp_paths, otp_paths(OtpPath, false) -- ExcludePaths),
     ok = set(lenses, Lenses),
     ok = set(diagnostics, Diagnostics),
     ok = set(
         search_paths,
-        lists:append([
-            project_paths(RootPath, AppsDirs, true),
-            project_paths(RootPath, DepsDirs, true),
-            include_paths(RootPath, IncludeDirs, false),
-            otp_paths(OtpPath, true)
-        ])
+        lists:usort(
+            lists:append([
+                project_paths(RootPath, AppsDirs, true),
+                project_paths(RootPath, DepsDirs, true),
+                include_paths(RootPath, IncludeDirs, false),
+                otp_paths(OtpPath, true)
+            ])
+        )
     ),
     %% Init Options
     ok = set(capabilities, Capabilities),
@@ -502,11 +506,11 @@ include_paths(RootPath, IncludeDirs, _Recursive) ->
     deep_dirs(IncludeDirs, RootPath).
 
 % 遍历所有子路径
-apps_paths(RootPath, AppsDirs) ->
-    deep_dirs(AppsDirs, RootPath).
+% apps_paths(RootPath, AppsDirs) ->
+%     deep_dirs(AppsDirs, RootPath).
 
 deep_dirs(Dirs, RootPath) ->
-    DeepDirs = [J || I <- Dirs, J <- [I, I++"/*", I++"/*/*", I++"/*/*/*", I++"/*/*/*/*"]],
+    DeepDirs = [J || I <- lists:usort(Dirs), J <- [I, I++"/*", I++"/*/*", I++"/*/*/*", I++"/*/*/*/*"]],
     deep_dirs(DeepDirs, RootPath, []).
 deep_dirs([], _RootPath, AppsDirs) ->
     lists:reverse(lists:usort(AppsDirs));
