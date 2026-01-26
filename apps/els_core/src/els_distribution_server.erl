@@ -81,10 +81,12 @@ start_distribution(Name, RemoteNode, Cookie, NameType) ->
             % ?LOG_ERROR("ErlangLs分布式节点启动成功 - Name:~p, NameType:~p, Cookie:~p", [node(), NameType, erlang:get_cookie()]),
             ok;
         {error, {already_started, _Pid}} ->
-            ?LOG_INFO("Distribution already enabled [name=~p]", [Name]),
+            ?LOG_ERROR("Distribution already enabled [name=~p]", [Name]),
+            c:q(),
             ok;
         {error, Error} ->
-            ?LOG_WARNING("Distribution shutdown [error=~p] [name=~p]", [Error, Name]),
+            ?LOG_ERROR("Distribution shutdown [error=~p] [name=~p]", [Error, Name]),
+            c:q(),
             {error, Error}
     end.
 

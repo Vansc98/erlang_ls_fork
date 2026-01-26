@@ -6,7 +6,14 @@
 -define(APP, els_lsp).
 
 -define(LSP_LOG_FORMAT, [
-    "[", time, "] ", "[", level, "] ", msg, " [", mfa, " line:", line, "] ", pid, "\n"
+    "[", time, "] ", 
+    % "[", {time, system}, "] ", % otp26?
+    % "[", {time, rfc3339}, "] ", 
+    % "[", {time, iso8601}, "] ", 
+    "[", level, "] ", 
+    msg, 
+    " [", mfa, " line:", line, "] ", 
+    pid, "\n"
 ]).
 -define(MNESIA_VERSION, 1).
 -define(V(Var), ?LOG_ERROR("~p=~p", [??Var, Var])).

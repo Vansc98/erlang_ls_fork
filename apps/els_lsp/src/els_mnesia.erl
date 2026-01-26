@@ -278,7 +278,8 @@ completion({hrl_file}) ->
         end
     end,
     ets:foldl(Function, [], r_uri);
-completion({function, args, EditMod, NameBinary, _Document, _Line}) ->
+% completion({function, args, EditMod, NameBinary, _Document, _Line}) ->
+completion({_, _, EditMod, NameBinary, _Document, _Line}) ->
     Prefix = binary_to_list(NameBinary),
     Function = fun(R, {Acc, FAcc}) ->
         case R#r_uri.type of
@@ -308,19 +309,19 @@ completion({function, args, EditMod, NameBinary, _Document, _Line}) ->
     % {MFAItems, FAITems} = mnesia:foldl(Function, {[], []}, r_uri),
     % ?V({POIKind, ItemFormat, EditMod, NameBinary, length(MFAItems)}),
     {mfa, MFAItems, FAITems};
-completion({any, args, _EditMod, _NameBinary, Document, Line}) ->
-    L = els_completion_provider:attributes(Document, Line),
-    [case maps:get(label, Item, undefined) of
-        <<$-, _/binary>> ->
-            InsertText = maps:get(insertText, Item, <<>>),
-            Item#{insertText => <<$-,InsertText/binary>>};
-        _ ->
-            Item
-    end
-    || Item <- L];
-completion({POIKind, ItemFormat, _EditMod, _NameBinary, _Document}) ->
-    ?V({POIKind, ItemFormat}),
-    [];
+% completion({any, args, _EditMod, _NameBinary, Document, Line}) ->
+%     L = els_completion_provider:attributes(Document, Line),
+%     [case maps:get(label, Item, undefined) of
+%         <<$-, _/binary>> ->
+%             InsertText = maps:get(insertText, Item, <<>>),
+%             Item#{insertText => <<$-,InsertText/binary>>};
+%         _ ->
+%             Item
+%     end
+%     || Item <- L];
+% completion({POIKind, ItemFormat, _EditMod, _NameBinary, _Document}) ->
+%     ?V({POIKind, ItemFormat}),
+%     [];
 completion(Msg) ->
     ?V(Msg),
     [].
