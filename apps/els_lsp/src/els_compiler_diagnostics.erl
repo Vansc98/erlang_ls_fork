@@ -53,7 +53,7 @@ is_default() ->
 
 -spec run(uri()) -> [els_diagnostics:diagnostic()].
 run(Uri) ->
-    case filename:extension(Uri) of
+    case not is_otp_file(Uri) andalso filename:extension(Uri) of
         <<".erl">> ->
             compile(Uri);
         <<".hrl">> ->
@@ -69,9 +69,21 @@ run(Uri) ->
             parse(Uri);
         <<".escript">> ->
             parse_escript(Uri);
+        false ->
+            [];
         _Ext ->
-            ?LOG_DEBUG("Skipping diagnostics due to extension [uri=~p]", [Uri]),
             []
+    end.
+
+is_otp_file(Uri) ->
+    Path = els_uri:path(Uri),
+    PathStr = els_utils:to_list(Path),
+    OtpPath = els_config:get(otp_path),
+    % 将OtpPath转换为字符串并确保路径分隔符统一
+    OtpPathStr = els_utils:to_list(OtpPath),
+    case string:prefix(PathStr, OtpPathStr) of
+        nomatch -> false;
+        _Rest -> true
     end.
 
 -spec source() -> binary().

@@ -39,6 +39,8 @@ fix_uri([], L) ->
     lists:reverse(L);
 fix_uri([$%, $3, $A|T], L) ->
     lists:reverse(L) ++ [$: | T];
+fix_uri([$%, $2, $0|T], L) ->
+    lists:reverse(L) ++ [32 | T];
 fix_uri([H|T], L) ->
     fix_uri(T, [H|L]).
 
