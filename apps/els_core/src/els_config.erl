@@ -262,25 +262,26 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
         )
     ),
     %% Calculated from the above
-    AppAndIncludeDirs = deep_dirs(IncludeDirs++AppsDirs, RootPath),
+    AppAndIncludeDirs = find_dirs(RootPath, [".erl",".hrl"]),
     ok = set(apps_paths, AppAndIncludeDirs),
     % ok = set(apps_paths, project_paths(RootPath, AppsDirs, false)),
     ok = set(deps_paths, project_paths(RootPath, DepsDirs, false)),
     % ok = set(include_paths, include_paths(RootPath, IncludeDirs, false)),
-    ok = set(include_paths, AppAndIncludeDirs),
+    ok = set(include_paths, find_dirs(RootPath, [".hrl"])),
     ok = set(otp_paths, otp_paths(OtpPath, false) -- ExcludePaths),
     ok = set(lenses, Lenses),
     ok = set(diagnostics, Diagnostics),
     ok = set(
         search_paths,
-        lists:usort(
-            lists:append([
-                project_paths(RootPath, AppsDirs, true),
-                project_paths(RootPath, DepsDirs, true),
-                include_paths(RootPath, IncludeDirs, false),
-                otp_paths(OtpPath, true)
-            ])
-        )
+        AppAndIncludeDirs
+        % lists:usort(
+        %     lists:append([
+        %         project_paths(RootPath, AppsDirs, true),
+        %         project_paths(RootPath, DepsDirs, true),
+        %         include_paths(RootPath, IncludeDirs, false),
+        %         otp_paths(OtpPath, true)
+        %     ])
+        % )
     ),
     %% Init Options
     ok = set(capabilities, Capabilities),
@@ -496,29 +497,78 @@ report_broken_config(lsp_notification, Path, Reason) ->
     ),
     ok.
 
--spec include_paths(path(), string(), boolean()) -> [string()].
-include_paths(RootPath, IncludeDirs, _Recursive) ->
-    % Paths = [
-    %     [Dir1 ||Dir1 <- els_utils:resolve_paths([[RootPath, Dir]], Recursive), filelib:is_dir(Dir1)]
-    %  || Dir <- IncludeDirs
-    % ],
-    % lists:append(Paths).
-    deep_dirs(IncludeDirs, RootPath).
+% -spec include_paths(path(), string(), boolean()) -> [string()].
+% include_paths(RootPath, IncludeDirs, _Recursive) ->
+%     Paths = [
+%         [Dir1 ||Dir1 <- els_utils:resolve_paths([[RootPath, Dir]], Recursive), filelib:is_dir(Dir1)]
+%      || Dir <- IncludeDirs
+%     ],
+%     lists:append(Paths).
 
-% 遍历所有子路径
-% apps_paths(RootPath, AppsDirs) ->
-%     deep_dirs(AppsDirs, RootPath).
 
-deep_dirs(Dirs, RootPath) ->
-    DeepDirs = [J || I <- lists:usort(Dirs), J <- [I, I++"/*", I++"/*/*", I++"/*/*/*", I++"/*/*/*/*"]],
-    deep_dirs(DeepDirs, RootPath, []).
-deep_dirs([], _RootPath, AppsDirs) ->
-    lists:reverse(lists:usort(AppsDirs));
-deep_dirs([SubDir|T], RootPath, AppsDirs) ->
-    Path = filename:join([RootPath, SubDir]),
-    Paths = filelib:wildcard(Path),
-    Dirs = [Dir || Dir <- Paths, filelib:is_dir(Dir)],
-    deep_dirs(T, RootPath, Dirs ++ AppsDirs).
+find_dirs(Dir, Extensions) ->
+    find_dirs(Dir, Extensions, []).
+find_dirs(Dir, Extensions, Acc) ->
+    case file:list_dir(Dir) of
+        {ok, Files} ->
+            % 检查当前目录是否包含.erl文件
+            HasErlFiles = lists:any(
+                fun(File) ->
+                    case filelib:is_file(filename:join(Dir, File)) of
+                        true -> lists:member(filename:extension(File), Extensions);
+                        false -> false
+                    end
+                end,
+                Files
+            ),
+            % 递归检查子目录
+            SubDirs = lists:foldl(
+                fun(File, SubAcc) ->
+                    Path = filename:join(Dir, File),
+                    case check_dir(Path) of
+                        true -> 
+                            % 递归检查子目录
+                            SubDirResults = find_dirs(Path, Extensions, []),
+                            SubDirResults ++ SubAcc;
+                        false -> 
+                            SubAcc
+                    end
+                end,
+                [],
+                Files
+            ),       
+            % 如果当前目录包含.erl文件，则添加到结果列表中
+            case HasErlFiles of
+                true -> [Dir | SubDirs] ++ Acc;
+                false -> SubDirs ++ Acc
+            end;
+        {error, _Reason} ->
+            % 如果无法读取目录，则返回当前累积的结果
+            Acc
+    end.
+
+% 检查是否是目录且不是符号链接且不是以"."开头的目录
+check_dir(Path) ->
+    case file:read_link(Path) of
+        {ok, _} ->
+            % ?LOG_ERROR("link:~p", [Path]), 
+            false;
+        {error, _} ->
+            case filelib:is_dir(Path) of
+                true ->
+                    BaseName = filename:basename(Path),
+                    case BaseName of
+                        [$. | _] ->
+                            % ?LOG_ERROR("baseName:~p", [BaseName]),
+                            false;
+                        _ -> 
+                            true
+                    end;
+                _ ->
+                    % ?LOG_ERROR("not dir:~p", [Path]),
+                    false
+            end
+    end.
 
 -spec project_paths(path(), [string()], boolean()) -> [string()].
 project_paths(RootPath, Dirs, Recursive) ->

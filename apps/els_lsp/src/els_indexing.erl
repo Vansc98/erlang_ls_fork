@@ -412,10 +412,15 @@ index_dir(Dir, Skip, SkipTag, Source) ->
         Ext = filename:extension(Path),
         lists:member(Ext, [".erl", ".hrl", ".escript"])
     end,
-
+    case Source of
+        app ->
+            FunName = shallow_fold_dir;
+        _ ->
+            FunName = fold_files
+    end,
     {Time, {Succeeded, Skipped, Failed}} = timer:tc(
         els_utils,
-        fold_files,
+        FunName,
         [
             F,
             Filter,

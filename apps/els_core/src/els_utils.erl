@@ -8,6 +8,7 @@
     find_module/1,
     find_modules/1,
     fold_files/4,
+    shallow_fold_dir/4,
     halt/1,
     lookup_document/1,
     include_id/1,
@@ -372,6 +373,27 @@ do_fold_dir(F, Filter, Dir, Acc) ->
         false ->
             Acc
     end.
+
+shallow_fold_dir(F, Filter, Dir, Acc) ->
+    case not is_symlink(Dir) andalso filelib:is_dir(Dir) of
+        true ->
+            {ok, Files} = file:list_dir(Dir),
+            shallow_fold_dir_1(F, Filter, Dir, Files, Acc);
+        false ->
+            Acc
+    end.
+
+shallow_fold_dir_1(_F, _Filter, _Dir, [], Acc0) ->
+    Acc0;
+shallow_fold_dir_1(F, Filter, Dir, [File | Rest], Acc0) ->
+    Path = filename:join(Dir, File),
+    %% Symbolic links are not regular files
+    Acc =
+        case filelib:is_regular(Path) of
+            true -> do_fold_file(F, Filter, Path, Acc0);
+            false -> Acc0
+        end,
+    shallow_fold_dir_1(F, Filter, Dir, Rest, Acc).
 
 -spec is_symlink(path()) -> boolean().
 is_symlink(Path) ->
