@@ -524,6 +524,7 @@ complete_atom(Name, Tokens, Opts) ->
                     WorkList = 
                         [
                             {keywords, fun() -> keywords(POIKind, ItemFormat) end},
+                            {variables, fun() -> variables(Document) end},
                             {bifs, fun() -> bifs(POIKind, ItemFormat) end},
                             {atoms, fun() -> atoms(Document, NameBinary) end},
                             {all_record_fields, fun() -> all_record_fields(Document, NameBinary) end},
@@ -1266,12 +1267,13 @@ exported_definitions(Module, POIKind, ItemFormat) ->
 -spec variables(els_dt_document:item()) -> [map()].
 variables(Document) ->
     POIs = els_dt_document:pois(Document, [variable]),
+    VNnames = lists:usort([ID || #{id := ID} <- POIs]),
     Vars = [
         #{
             label => atom_to_binary(Name, utf8),
             kind => ?COMPLETION_ITEM_KIND_VARIABLE
         }
-     || #{id := Name} <- POIs
+     || Name <- VNnames
     ],
     lists:usort(Vars).
 
