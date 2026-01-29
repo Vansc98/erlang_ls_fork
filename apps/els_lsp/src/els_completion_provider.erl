@@ -21,7 +21,7 @@
 -export([definitions/4]).
 -export([item_kind_file/1]).
 -export([attributes/2]).
-
+-export([variables/1]).
 
 -type options() :: #{
     trigger := binary(),
@@ -1567,23 +1567,25 @@ bifs(type_definition, arity_only) ->
     %% a -export_types(). context.
     [];
 bifs(Kind, ItemFormat) ->
-    [completion_item(X, ItemFormat) || X <- bif_pois(Kind)].
+    exported_definitions(erlang, function, args)++[completion_item(X, ItemFormat) || X <- bif_pois(Kind)].
 
 -spec bif_pois(poi_kind_or_any()) -> [map()].
 bif_pois(any) ->
-    bif_pois(function) ++ bif_pois(type_definition);
+    % bif_pois(function) ++ bif_pois(type_definition);
+    bif_pois(type_definition);
 bif_pois(function) ->
-    Range = #{from => {0, 0}, to => {0, 0}},
-    Exports = erlang:module_info(exports),
-    [
-        #{
-            kind => function,
-            id => X,
-            range => Range,
-            data => #{args => generate_arguments("Arg", A)}
-        }
-     || {F, A} = X <- Exports, erl_internal:bif(F, A)
-    ];
+    % Range = #{from => {0, 0}, to => {0, 0}},
+    % Exports = erlang:module_info(exports),
+    % [
+    %     #{
+    %         kind => function,
+    %         id => X,
+    %         range => Range,
+    %         data => #{args => generate_arguments("Arg", A)}
+    %     }
+    %  || {F, A} = X <- Exports, erl_internal:bif(F, A)
+    % ];
+    [];
 bif_pois(type_definition) ->
     Types = [
         {'any', 0},

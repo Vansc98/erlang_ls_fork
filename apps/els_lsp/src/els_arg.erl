@@ -9,7 +9,7 @@
 -export_type([arg/0]).
 -export_type([args/0]).
 
--include_lib("els_core/include/els_core.hrl").
+-include_lib("els_lsp.hrl").
 
 -type args() :: [arg()].
 -type arg() :: #{

@@ -26,6 +26,7 @@ start_link() ->
 init(_Args) ->
     put(server_flag, ?SERVER),
     ets:new(?ETS_KV, [named_table, public, set, {keypos, 2}, {read_concurrency, true}]),
+    erlang:send_after(1000, self(), loop),
     {ok, #state{}}.
 is_server() ->
     get(server_flag) == ?SERVER.
@@ -73,7 +74,8 @@ handle_cast(Msg, State) ->
     handle(Msg),
     {noreply, State}.
 handle_info(loop, State) ->
-    % erlang:send_after(1000, self(), loop),
+    erlang:send_after(1000, self(), loop),
+    els_text_synchronization:do_loop(),
     {noreply, State};
 handle_info(Info, State) ->
     handle(Info),
@@ -208,6 +210,7 @@ hook_file_open(Uri, Text) ->
     % }).
 
 hook_file_save(Uri0) ->
+    els_text_synchronization:unset_loop(),
     els_indexing:need_index(Uri0) 
     andalso
     els_background_job:new(#{

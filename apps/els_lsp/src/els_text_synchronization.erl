@@ -11,6 +11,8 @@
     did_close/1,
     did_change_watched_files/1
 ]).
+-export([do_loop/0]).
+-export([unset_loop/0]).
 
 -spec sync_mode() -> text_document_sync_kind().
 sync_mode() ->
@@ -29,20 +31,22 @@ did_change(Params) ->
     case ContentChanges of
         [] ->
             ok;
-        [Change] when not is_map_key(<<"range">>, Change) ->
+        [Change] when not is_map_key(<<"range">>, Change) -> %% Full
             #{<<"text">> := Text} = Change,
             {ok, Document} = els_utils:lookup_document(Uri),
             NewDocument = Document#{text => Text, version => Version},
             els_dt_document:insert(NewDocument),
-            background_index(NewDocument);
-        _ ->
+            % background_index(NewDocument);
+            set_loop(Uri);
+        _ -> %% Incremental
             ?LOG_DEBUG("didChange INCREMENTAL [changes: ~p]", [ContentChanges]),
             Edits = [to_edit(Change) || Change <- ContentChanges],
             {ok, #{text := Text0} = Document} = els_utils:lookup_document(Uri),
             Text = els_text:apply_edits(Text0, Edits),
             NewDocument = Document#{text => Text, version => Version},
             els_dt_document:insert(NewDocument),
-            background_index(NewDocument)
+            % background_index(NewDocument)
+            set_loop(Uri)
     end.
 
 -spec did_open(map()) -> ok.
@@ -131,11 +135,30 @@ reload_from_disk(Uri) ->
     end,
     ok.
 
+set_loop(Uri) ->
+    els_mnesia:cast(fun() -> put({?MODULE, todo}, Uri) end).
+unset_loop() ->
+    erase({?MODULE, todo}).
+do_loop() ->
+    case unset_loop() of
+        undefined ->
+            ok;
+        Uri ->
+            case els_utils:lookup_document(Uri) of
+                {ok, Document} -> 
+                    background_index(Document);
+                _ ->
+                    ok
+            end
+    end.
+
 -spec background_index(els_dt_document:item()) -> {ok, pid()}.
 background_index(#{uri := Uri} = Document) ->
     Config = #{
         task => fun(Doc, _State) ->
-            els_indexing:deep_index(Doc, _UpdateWords = true),
+            _NewDocument = els_indexing:deep_index(Doc, _UpdateWords = true),
+            % Vs = els_completion_provider:variables(NewDocument),
+            % ?V(length(Vs)),
             ok
         end,
         entries => [Document],

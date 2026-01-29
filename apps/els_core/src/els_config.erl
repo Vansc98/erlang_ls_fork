@@ -165,7 +165,7 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
     % els_beam_mfa:set_exclude_list(ExMfaModPre),
     ok = add_code_paths(CodePathExtraDirs, RootPath),
     ElvisConfigPath = maps:get("elvis_config_path", Config, undefined),
-    IncrementalSync = maps:get("incremental_sync", Config, true),
+    IncrementalSync = maps:get("incremental_sync", Config, false),
     Indexing = maps:get("indexing", Config, #{}),
     CompilerTelemetryEnabled =
         maps:get("compiler_telemetry_enabled", Config, false),
