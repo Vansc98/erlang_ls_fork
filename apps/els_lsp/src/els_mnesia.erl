@@ -17,6 +17,8 @@
 -export([hook_file_open/2]).
 -export([hook_file_save/1]).
 -export([get_uri/1]).
+-export([hook_source_finish/1]).
+-export([erlang_bif/0]).
 -record(state, {
 }).
 
@@ -359,3 +361,29 @@ match_prefix([Char|T1], [_|T2]) ->
     match_prefix([Char|T1], T2);
 match_prefix(RemainPrefix, _) ->
     RemainPrefix.
+
+
+hook_source_finish(Source) ->
+    cast(fun() ->
+        case Source of
+            otp ->
+                case erlang_bif() of
+                    [] ->
+                        Items = els_completion_provider:exported_definitions(erlang, function, args),
+                        set_val(erlang_bif, Items, true);
+                    _ ->
+                        ok
+                end;
+            _ ->
+                ok
+        end
+    end).
+
+erlang_bif() ->
+    case get_val(erlang_bif, true) of
+        undefined ->
+            [];
+        Bifs ->
+            Bifs
+    end.
+            

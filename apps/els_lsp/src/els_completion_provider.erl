@@ -18,6 +18,7 @@
 ]).
 
 -export([exported_definitions/3]).
+-export([definitions/3]).
 -export([definitions/4]).
 -export([item_kind_file/1]).
 -export([attributes/2]).
@@ -1567,7 +1568,9 @@ bifs(type_definition, arity_only) ->
     %% a -export_types(). context.
     [];
 bifs(Kind, ItemFormat) ->
-    exported_definitions(erlang, function, args)++[completion_item(X, ItemFormat) || X <- bif_pois(Kind)].
+    % exported_definitions(erlang, function, args)
+    els_mnesia:erlang_bif()
+        ++[completion_item(X, ItemFormat) || X <- bif_pois(Kind)].
 
 -spec bif_pois(poi_kind_or_any()) -> [map()].
 bif_pois(any) ->

@@ -293,6 +293,7 @@ start(Group, Skip, SkipTag, Entries, Source) ->
                     [Group, Succeeded, Skipped, Failed, Duration]
                 ),
                 % els_beam_mfa:app_finish_index(Source),
+                els_mnesia:hook_source_finish(Source),
                 els_telemetry:send_notification(Event)
             end
     },
