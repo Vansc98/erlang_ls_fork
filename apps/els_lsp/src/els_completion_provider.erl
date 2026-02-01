@@ -1267,8 +1267,15 @@ exported_definitions(Module, POIKind, ItemFormat) ->
 
 -spec variables(els_dt_document:item()) -> [map()].
 variables(Document) ->
+    Module = maps:get(id, Document, 'NOT_FOUND_MODULE'),
     POIs = els_dt_document:pois(Document, [variable]),
-    VNnames = lists:usort([ID || #{id := ID} <- POIs]),
+    case els_mnesia:get_val({Module, raw_string_variable}) of
+        undefined ->
+            RawStringVL = [];
+        RawStringVL ->
+            ok
+    end,
+    VNnames = lists:usort(RawStringVL ++ [ID || #{id := ID} <- POIs]),
     Vars = [
         #{
             label => atom_to_binary(Name, utf8),

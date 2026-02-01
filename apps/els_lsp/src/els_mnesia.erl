@@ -193,7 +193,9 @@ item2rfa(#{data := #{<<"module">> := M,<<"function">> := F,<<"arity">> := A}, in
 hook_file_open(Uri, Text) ->
     % els_background_job:new(#{
     %     task => fun(Uri, _State) ->
+            els_parser:init_raw_string_variable(Uri),
             Document = els_indexing:force_deep_index(Uri, app, Text),
+            els_parser:update_raw_string_variable_to_ets(),
             case els_indexing:need_index(Uri) of
                 true ->
                     LastModified = els_uri:last_modified(Uri),
@@ -222,7 +224,9 @@ hook_file_save(Uri0) ->
                 [#r_uri{last_modified = LastModified}] ->
                     ok;
                 _ ->
+                    els_parser:init_raw_string_variable(Uri),
                     Document = els_indexing:force_deep_index(Uri),
+                    els_parser:update_raw_string_variable_to_ets(),
                     hook_deep_index(Uri, LastModified, Document)
             end
         end,

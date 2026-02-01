@@ -1,6 +1,6 @@
 {
-    // "erlang_ls.serverPath": ".\\_build\\default\\bin\\erlang_ls"
-    "erlang_ls.serverPath": "D:\\linux_data\\github_pj\\erlang_ls_fork\\_build\\default\\bin\\erlang_ls",
+    "erlang_ls.serverPath": "_build\\default\\bin\\erlang_ls",
+    // "erlang_ls.serverPath": "D:\\linux_data\\github_pj\\erlang_ls_fork\\_build\\default\\bin\\erlang_ls",
     "erlang_ls.trace.server": "verbose",
     "erlang_ls.logLevel": "error",
 }

@@ -18,6 +18,9 @@
     parse_text/1
 ]).
 
+-export([init_raw_string_variable/1]).
+-export([update_raw_string_variable_to_ets/0]).
+
 %%==============================================================================
 %% Includes
 %%==============================================================================
@@ -121,6 +124,7 @@ parse_forms(Forms) ->
 
 -spec parse_form(erlfmt_parse:abstract_node()) -> deep_list(els_poi:poi()).
 parse_form({raw_string, Anno, Text}) ->
+    update_raw_string_variable(Text),
     StartLoc = erlfmt_scan:get_anno(location, Anno),
     RangeTokens = scan_text(Text, StartLoc),
     case parse_incomplete_tokens(RangeTokens) of
@@ -133,6 +137,38 @@ parse_form(Form) ->
     Tree = els_erlfmt_ast:erlfmt_to_st(Form),
     POIs = points_of_interest(Tree),
     POIs.
+
+init_raw_string_variable(Uri) ->
+    Module = els_uri:module(Uri),
+    put({?MODULE, module}, Module),
+    set_raw_string_variable([]).
+set_raw_string_variable(L) ->
+    put({?MODULE, raw_string_variable}, L).
+get_raw_string_variable() ->
+    get({?MODULE, raw_string_variable}).
+update_raw_string_variable(Text) ->
+    case get_raw_string_variable() of
+        L when is_list(L) ->
+            Pattern = "(?<!\\?)\\b[A-Z_][A-Za-z0-9_]*\\b",
+            case re:run(Text, Pattern, [global, {capture, first, list}]) of
+                {match, Captured} ->
+                    L2 = [I || IL <- Captured, I <- IL, I =/= "_"] ++ L,
+                    set_raw_string_variable(L2);
+                _ ->
+                    ok
+            end;
+        _ ->
+            ok
+    end.
+update_raw_string_variable_to_ets() ->
+    case get_raw_string_variable() of
+        L when is_list(L) ->
+            VL = [list_to_atom(VName) || VName <- lists:usort(L)],
+            Module = get({?MODULE, module}),
+            els_mnesia:set_val({Module, raw_string_variable}, VL);
+        _ ->
+            ok
+    end.
 
 -spec scan_text(string(), {erl_anno:line(), erl_anno:column()}) ->
     [erlfmt_scan:token()].
