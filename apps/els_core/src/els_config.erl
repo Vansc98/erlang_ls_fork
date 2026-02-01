@@ -521,34 +521,41 @@ find_dirs(Dir, Extensions, Acc) ->
                 end,
                 Files
             ),
+            case HasErlFiles of
+                true -> 
+                    NewAcc = [Dir | Acc];
+                _ ->
+                    NewAcc = Acc
+            end,
             % 递归检查子目录
-            SubDirs = lists:foldl(
+            lists:foldl(
                 fun(File, SubAcc) ->
                     Path = filename:join(Dir, File),
-                    case check_dir(Path) of
+                    case check_dir(Path, File) of
                         true -> 
                             % 递归检查子目录
-                            SubDirResults = find_dirs(Path, Extensions, []),
-                            SubDirResults ++ SubAcc;
+                            find_dirs(Path, Extensions, SubAcc);
                         false -> 
                             SubAcc
                     end
                 end,
-                [],
-                Files
-            ),       
-            % 如果当前目录包含.erl文件，则添加到结果列表中
-            case HasErlFiles of
-                true -> [Dir | SubDirs] ++ Acc;
-                false -> SubDirs ++ Acc
-            end;
+                NewAcc,Files
+            );
         {error, _Reason} ->
             % 如果无法读取目录，则返回当前累积的结果
             Acc
     end.
 
 % 检查是否是目录且不是符号链接且不是以"."开头的目录
-check_dir(Path) ->
+% 排除 "_build/default/extras"
+check_dir(Path, "extras") ->
+    case lists:suffix("_build/default/extras", Path) of
+        true ->
+            false;
+        _ ->
+            check_dir(Path, ok)
+    end;
+check_dir(Path, _File) ->
     case file:read_link(Path) of
         {ok, _} ->
             % ?LOG_ERROR("link:~p", [Path]), 
