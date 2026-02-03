@@ -4,7 +4,7 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "编译",
+            "label": "编译(windows)",
             "type": "shell",
             "command": "rebar3 compile",
             "group": {
@@ -28,21 +28,10 @@
             ]
         },
         {
-            "label": "生成 bin",
+            "label": "生成bin(windows)",
+            // MacOs需要在 zsh 中执行 make all
             "type": "shell",
             "command": "rebar3 escriptize",
-            "group": {
-                "build": true
-            }
-        },
-        {
-            "label": "打开目标项目",
-            "type": "shell",
-            "dependsOn": [
-                "生成 bin"
-            ],
-            "command": "code D:\\linux_data\\qt01\\",
-            // "command": "code D:\\Work\\company\\yymj\\dev_yymj_gh",
             "group": {
                 "build": true
             }

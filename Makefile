@@ -10,7 +10,7 @@ all:
 install: all
 	@ echo "Installing escript..."
 	@ mkdir -p '${PREFIX}/bin'
-	@ cp _build/default/bin/erlang_ls ${PREFIX}/bin
+	@ sudo cp _build/default/bin/erlang_ls ${PREFIX}/bin
 
 .PHONY: clean
 clean:

@@ -267,7 +267,7 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
     % ok = set(apps_paths, project_paths(RootPath, AppsDirs, false)),
     ok = set(deps_paths, project_paths(RootPath, DepsDirs, false)),
     % ok = set(include_paths, include_paths(RootPath, IncludeDirs, false)),
-    ok = set(include_paths, find_dirs(RootPath, [".hrl"])),
+    ok = set(include_paths, [filename:join([RootPath, "apps"])] ++ find_dirs(RootPath, [".hrl"])),
     ok = set(otp_paths, otp_paths(OtpPath, false) -- ExcludePaths),
     ok = set(lenses, Lenses),
     ok = set(diagnostics, Diagnostics),

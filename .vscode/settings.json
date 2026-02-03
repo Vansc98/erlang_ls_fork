@@ -1,6 +1,10 @@
 {
-    "erlang_ls.serverPath": "_build\\default\\bin\\erlang_ls",
+    // windows
+    // "erlang_ls.serverPath": "_build\\default\\bin\\erlang_ls",
+    // 使用完整路径不会弹错误提示
     // "erlang_ls.serverPath": "D:\\linux_data\\github_pj\\erlang_ls_fork\\_build\\default\\bin\\erlang_ls",
+    // linux/mac
+    "erlang_ls.serverPath": "_build/default/bin/erlang_ls",
     "erlang_ls.trace.server": "verbose",
     "erlang_ls.logLevel": "error",
 }
