@@ -287,9 +287,9 @@ find_completions(
     case lists:reverse(els_text:tokens(Prefix)) of
         [{atom, _, RecordName}, {'#', _} | _] ->
             record_fields(Document, RecordName);
-        [{var,1, _VarNameAtom}|_] ->
-            % ?LOG_ERROR("Tokens:~p", [Tokens]),
-            record_and_field(Document, Prefix, "#~p.~p");
+        % [{var,1, _VarNameAtom}|_] ->
+        %     % ?LOG_ERROR("Tokens:~p", [Tokens]),
+        %     record_and_field(Document, Prefix, "#~p.~p");
         _ ->
             []
     end;

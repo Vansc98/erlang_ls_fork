@@ -69,6 +69,7 @@ start_distribution(Name) ->
 -spec start_distribution(atom(), atom(), atom(), shortnames | longnames) ->
     ok | {error, any()}.
 start_distribution(Name, RemoteNode, Cookie, NameType) ->
+    NodeCookie = erlang_ls,
     case net_kernel:start([Name, NameType]) of
         {ok, _Pid} ->
             case Cookie of
@@ -78,17 +79,23 @@ start_distribution(Name, RemoteNode, Cookie, NameType) ->
                     erlang:set_cookie(RemoteNode, CustomCookie)
             end,
             els_mnesia:start_distribution(),
+            erlang:set_cookie(NodeCookie),
             % ?LOG_ERROR("ErlangLs分布式节点启动成功 - Name:~p, NameType:~p, Cookie:~p", [node(), NameType, erlang:get_cookie()]),
             ok;
         {error, {already_started, _Pid}} ->
-            ?LOG_ERROR("Distribution already enabled [name=~p]", [Name]),
-            c:q(),
+            % ?LOG_ERROR("Distribution already enabled [name=~p]", [Name]),
+            try_to_kill(Name, NodeCookie),
             ok;
         {error, Error} ->
-            ?LOG_ERROR("Distribution shutdown [error=~p] [name=~p]", [Error, Name]),
-            c:q(),
+            % ?LOG_ERROR("Distribution shutdown [error=~p] [name=~p]", [Error, Name]),
+            try_to_kill(Name, NodeCookie),
             {error, Error}
     end.
+
+try_to_kill(Name, NodeCookie) ->
+    Cmd = "erl -sname killer -setcookie " ++ atom_to_list(NodeCookie) ++ " -noshell -eval \"rpc:call('"++ atom_to_list(Name) ++"', init, stop, []),halt()\"",
+    os:cmd(Cmd),
+    halt().
 
 %% @doc Connect to an existing runtime node, if available, or start one.
 -spec connect() -> ok.
