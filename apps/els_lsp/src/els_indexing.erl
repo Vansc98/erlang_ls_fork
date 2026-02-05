@@ -18,7 +18,6 @@
 -export([force_deep_index/2]).
 -export([force_deep_index/3]).
 -export([need_index/1]).
--export([exclude_erl/1]).
 %%==============================================================================
 %% Includes
 %%==============================================================================
@@ -100,11 +99,11 @@ force_deep_index(Uri, Source, Text) ->
 -spec deep_index(els_dt_document:item(), boolean()) -> els_dt_document:item().
 deep_index(Document0, UpdateWords) ->
     #{
-        id := Module,
+        uri := Uri,
         text := Text
     } = Document0,
-    case exclude_erl(Module) of
-        false ->
+    case need_index(Uri) of
+        true ->
             {ok, POIs} = els_parser:parse(Text),
             Document =
                 case UpdateWords of
