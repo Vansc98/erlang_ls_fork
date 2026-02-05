@@ -19,7 +19,8 @@
 -spec start_listener(function()) -> {ok, pid()}.
 start_listener(Cb) ->
     IoDevice = application:get_env(els_core, io_device, standard_io),
-    {ok, proc_lib:spawn_link(?MODULE, init, [{Cb, IoDevice}])}.
+    % {ok, proc_lib:spawn_link(?MODULE, init, [{Cb, IoDevice}])}.
+    {ok, proc_lib:spawn(?MODULE, init, [{Cb, IoDevice}])}.
 
 -spec init({function(), atom() | pid()}) -> no_return().
 init({Cb, IoDevice}) ->

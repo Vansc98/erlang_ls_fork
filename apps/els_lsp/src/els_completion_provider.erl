@@ -115,7 +115,7 @@ run_completion_job(Uri, Line, Character, TriggerKind, TriggerCharacter) ->
     },
     Config = #{
         task => fun find_completions/2,
-        entries => [{Prefix, TriggerKind, Opts}],
+        entries => [{Prefix, TriggerKind, Opts, Uri}],
         title => <<"Completion">>,
         on_complete => fun els_server:register_result/1
     },
@@ -123,10 +123,15 @@ run_completion_job(Uri, Line, Character, TriggerKind, TriggerCharacter) ->
     Pid.
 
 -spec find_completions({binary(), completion_trigger_kind(), options()}, any()) -> items().
-find_completions({Prefix, TriggerKind, Opts}, _) ->
-    Result = find_completions(Prefix, TriggerKind, Opts),
-    ?LOG_INFO("Found completions: ~p", [length(Result)]),
-    Result.
+find_completions({Prefix, TriggerKind, Opts, Uri}, _) ->
+    case els_indexing:need_index(Uri) of
+        true ->
+            Result = find_completions(Prefix, TriggerKind, Opts),
+            ?LOG_INFO("Found completions: ~p", [length(Result)]),
+            Result;
+        _ ->
+            []
+    end.
 
 -spec resolve(map()) -> map().
 resolve(

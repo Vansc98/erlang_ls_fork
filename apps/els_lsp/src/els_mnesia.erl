@@ -78,6 +78,7 @@ handle_cast(Msg, State) ->
 handle_info(loop, State) ->
     erlang:send_after(1000, self(), loop),
     els_text_synchronization:do_loop(),
+    check_els_server_message(),
     {noreply, State};
 handle_info(Info, State) ->
     handle(Info),
@@ -86,6 +87,19 @@ terminate(_Reason, _State) ->
     ok.
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
+
+check_els_server_message() ->
+    case whereis(els_server) of
+        Pid when is_pid(Pid) ->
+            case process_info(Pid, message_queue_len) of
+                {message_queue_len, Len} when Len >= 10 ->
+                    catch els_server:restart();
+                _ ->
+                    ok
+            end;
+        _ ->
+            ok
+    end.
 
 handle(Func) when is_function(Func) ->
     try

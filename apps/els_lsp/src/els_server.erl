@@ -34,6 +34,7 @@
     register_diagonstics/2
 ]).
 
+-export([restart/0]).
 %% Testing
 -export([reset_state/0]).
 
@@ -73,13 +74,33 @@
 %%==============================================================================
 %% API
 %%==============================================================================
+restart() ->
+    supervisor:terminate_child(els_sup, ?MODULE),
+    supervisor:restart_child(els_sup, ?MODULE).
+
 -spec start_link() -> {ok, pid()}.
 start_link() ->
     {ok, Pid} = gen_server:start_link({local, ?SERVER}, ?MODULE, [], []),
-    Cb = fun(Requests) ->
-        gen_server:cast(Pid, {process_requests, Requests})
+    case is_pid(els_mnesia:get_val(io_listener)) of
+        false -> %% 首次启动
+            Cb = fun(Requests) ->
+                case is_process_alive(Pid) of
+                    true ->
+                        gen_server:cast(Pid, {process_requests, Requests});
+                    _ ->
+                        case whereis(els_server) of
+                            RestartPid when is_pid(RestartPid) ->
+                                gen_server:cast(RestartPid, {process_requests, Requests});
+                            _ ->
+                                ok
+                        end
+                end
+            end,
+            {ok, IoListener} = els_stdio:start_listener(Cb),
+            els_mnesia:set_val(io_listener, IoListener);
+        _ -> %% 重新启动
+            ok
     end,
-    {ok, _} = els_stdio:start_listener(Cb),
     {ok, Pid}.
 
 -spec process_requests([any()]) -> ok.
@@ -128,9 +149,17 @@ init([]) ->
     %% job to clean up.
     process_flag(trap_exit, true),
     ?LOG_INFO("Starting els_server..."),
+    case els_mnesia:get_val(io_device) of
+        IoDevice when is_pid(IoDevice) -> %% 重新启动
+            Status = initialized,
+            ok;
+        _ -> %% 首次启动
+            Status = started,
+            IoDevice = standard_io
+    end,
     State = #{
-        status => started,
-        io_device => standard_io,
+        status => Status,
+        io_device => IoDevice,
         request_id => 0,
         pending => [],
         open_buffers => sets:new(),
@@ -141,6 +170,7 @@ init([]) ->
 
 -spec handle_call(any(), any(), state()) -> {reply, any(), state()}.
 handle_call({set_io_device, IoDevice}, _From, State) ->
+    els_mnesia:set_val(io_device, IoDevice),
     {reply, ok, State#{io_device := IoDevice}};
 handle_call({reset_state}, _From, State) ->
     {reply, ok, State#{

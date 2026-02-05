@@ -55,13 +55,7 @@ is_default() ->
 run(Uri) ->
     case not is_otp_file(Uri) andalso filename:extension(Uri) of
         <<".erl">> ->
-            M = els_uri:module(Uri),
-            case els_indexing:exclude_erl(M) of
-                false ->
-                    compile(Uri);
-                _ ->
-                    []
-            end;
+            compile(Uri);
         <<".hrl">> ->
             %% It does not make sense to 'compile' header files in isolation
             %% (e.g. using the compile:forms/1 function). That would in fact

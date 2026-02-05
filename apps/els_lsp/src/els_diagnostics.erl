@@ -116,7 +116,7 @@ make_diagnostic(Range, Message, Severity, Source, Data) ->
 
 -spec run_diagnostics(uri()) -> [pid()].
 run_diagnostics(Uri) ->
-    case is_initial_indexing_done() of
+    case is_initial_indexing_done() andalso els_indexing:need_index(Uri) of
         true ->
             ok = wait_for_indexing_job(Uri),
             [run_diagnostic(Uri, Id) || Id <- enabled_diagnostics()];
