@@ -183,6 +183,6 @@ background_index(#{uri := Uri} = Document) ->
             ok
         end,
         entries => [Document],
-        title => <<"Indexing ", Uri/binary>>
+        title => <<"Text Indexing ", Uri/binary>>
     },
     els_background_job:new(Config).

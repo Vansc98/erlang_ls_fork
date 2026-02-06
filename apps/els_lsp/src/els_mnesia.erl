@@ -245,7 +245,7 @@ hook_file_save(Uri0) ->
             end
         end,
         entries => [Uri0],
-        title => <<"Indexing ", Uri0/binary>>
+        title => <<"Save Indexing:", Uri0/binary>>
     }).
 
 mfa_detail([$$, ${, _, $:|T], Detail) ->
