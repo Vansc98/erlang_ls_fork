@@ -16,6 +16,7 @@
     app/1
 ]).
 -export([fix_uri/1]).
+-export([is_large_file/1]).
 
 %%==============================================================================
 %% Types
@@ -128,6 +129,10 @@ lowercase_drive_letter(Path) ->
 last_modified(Uri) ->
     FilePath = els_uri:path(Uri),
     filelib:last_modified(FilePath).
+
+is_large_file(Uri) ->
+    Size = filelib:file_size(els_uri:path(Uri)),
+    Size > 1024 * 1024.
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").

@@ -102,7 +102,7 @@ deep_index(Document0, UpdateWords) ->
         uri := Uri,
         text := Text
     } = Document0,
-    case need_index(Uri) of
+    case need_index(Uri) orelse (not els_uri:is_large_file(Uri)) of
         true ->
             {ok, POIs} = els_parser:parse(Text),
             Document =
