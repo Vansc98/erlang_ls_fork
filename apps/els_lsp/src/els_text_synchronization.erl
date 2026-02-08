@@ -159,27 +159,6 @@ background_index(#{uri := Uri} = Document) ->
             els_parser:init_raw_string_variable(Uri),
             _NewDocument = els_indexing:deep_index(Doc, _UpdateWords = true),
             els_parser:update_raw_string_variable_to_ets(),
-            % Vs = els_completion_provider:variables(NewDocument),
-            % case els_uri:module(Uri) of
-            %     l_player_girl ->
-            %         POIs = els_dt_document:pois(Document, [variable]),
-            %         VNnames = lists:usort([ID || #{id := ID} <- POIs]),
-            %         case lists:member('NeedList', VNnames) of
-            %             false ->
-            %                 #{text := Text} = Document,
-            %                 String = els_utils:to_list(Text),
-            %                 case erlfmt:read_nodes_string("nofile", String) of
-            %                     {ok, Forms, _ErrorInfo} ->
-            %                         ?V(Forms);
-            %                     _ ->
-            %                         ok
-            %                 end;
-            %             _ ->
-            %                 ok
-            %         end;
-            %     _ ->
-            %         ok
-            % end,
             ok
         end,
         entries => [Document],

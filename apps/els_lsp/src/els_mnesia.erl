@@ -205,27 +205,21 @@ item2rfa(#{data := #{<<"module">> := M,<<"function">> := F,<<"arity">> := A}, in
 
 
 hook_file_open(Uri, Text) ->
-    % els_background_job:new(#{
-    %     task => fun(Uri, _State) ->
-            els_parser:init_raw_string_variable(Uri),
-            Document = els_indexing:force_deep_index(Uri, app, Text),
-            els_parser:update_raw_string_variable_to_ets(),
-            case els_indexing:need_index(Uri) of
-                true ->
-                    LastModified = els_uri:last_modified(Uri),
-                    case mnesia:dirty_read(r_uri, Uri) of
-                        [#r_uri{last_modified = LastModified}] ->
-                            ok;
-                        _ ->
-                            hook_deep_index(Uri, LastModified, Document)
-                    end;
+    els_parser:init_raw_string_variable(Uri),
+    Document = els_indexing:force_deep_index(Uri, app, Text),
+    els_parser:update_raw_string_variable_to_ets(),
+    case els_indexing:need_index(Uri) of
+        true ->
+            LastModified = els_uri:last_modified(Uri),
+            case mnesia:dirty_read(r_uri, Uri) of
+                [#r_uri{last_modified = LastModified}] ->
+                    ok;
                 _ ->
-                    ok
-            end.
-    %     end,
-    %     entries => [Uri0],
-    %     title => <<"Indexing ", Uri0/binary>>
-    % }).
+                    hook_deep_index(Uri, LastModified, Document)
+            end;
+        _ ->
+            ok
+    end.
 
 hook_file_save(Uri0) ->
     els_text_synchronization:unset_loop(),
