@@ -154,14 +154,20 @@ do_loop() ->
 
 -spec background_index(els_dt_document:item()) -> {ok, pid()}.
 background_index(#{uri := Uri} = Document) ->
-    Config = #{
-        task => fun(Doc, _State) ->
-            els_parser:init_raw_string_variable(Uri),
-            _NewDocument = els_indexing:deep_index(Doc, _UpdateWords = true),
-            els_parser:update_raw_string_variable_to_ets(),
-            ok
-        end,
-        entries => [Document],
-        title => <<"Text Indexing ", Uri/binary>>
-    },
-    els_background_job:new(Config).
+    spawn(fun() -> 
+        els_parser:init_raw_string_variable(Uri),
+        _NewDocument = els_indexing:deep_index(Document, _UpdateWords = true),
+        els_parser:update_raw_string_variable_to_ets(),
+        ok
+    end).
+    % Config = #{
+    %     task => fun(Doc, _State) ->
+    %         els_parser:init_raw_string_variable(Uri),
+    %         _NewDocument = els_indexing:deep_index(Doc, _UpdateWords = true),
+    %         els_parser:update_raw_string_variable_to_ets(),
+    %         ok
+    %     end,
+    %     entries => [Document],
+    %     title => <<"Text Indexing ", Uri/binary>>
+    % },
+    % els_background_job:new(Config).
