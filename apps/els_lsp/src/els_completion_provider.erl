@@ -735,6 +735,9 @@ complete_record_field(#{text := Text0} = Document, Pos, Suffix) ->
     %% relevant top level expression
     Prefix =
         case els_scope:pois_before(POIs, #{from => Pos, to => Pos}) of
+            [#{data := #{folding_range := #{to := {Line, _}}}} | _] ->
+                {_, Prefix1} = els_text:split_at_line(Prefix0, Line),
+                Prefix1;
             [#{range := #{to := {Line, _}}} | _] ->
                 {_, Prefix1} = els_text:split_at_line(Prefix0, Line),
                 Prefix1;
