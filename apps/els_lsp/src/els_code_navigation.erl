@@ -78,7 +78,7 @@ goto_definition(
     end;
 goto_definition(
     Uri,
-    #{kind := atom, id := Id, range := #{from := From}} = PPP
+    #{kind := atom, id := Id, range := #{from := From}}
 ) ->
     %% Two interesting cases for atoms: functions and modules.
     %% We return all function defs with any arity combined with module defs.
