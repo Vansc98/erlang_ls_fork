@@ -16,7 +16,7 @@
     " [", mfa, " line:", line, "] ", 
     pid, "\n"
 ]).
--define(MNESIA_VERSION, 1).
+-define(MNESIA_VERSION, 2).
 -define(V(Var), ?LOG_ERROR("~p=~p", [??Var, Var])).
 -record(r_uri, {
     uri = <<>>,

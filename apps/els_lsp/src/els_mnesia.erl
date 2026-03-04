@@ -19,6 +19,7 @@
 -export([get_uri/1]).
 -export([hook_source_finish/1]).
 -export([erlang_bif/0]).
+-export([get_function_uri/1]).
 -record(state, {
 }).
 
@@ -195,6 +196,7 @@ index_records([#{id := {RecordName, FieldName}}|T], RecordName0, Fields, Records
 item2rfa(#{data := #{<<"module">> := M,<<"function">> := F,<<"arity">> := A}, insertText := FaText}) ->
     % ?V(binary_to_list(FaText)),
     #r_fa{
+        fa = {F, A},
         prefix = atom_to_list(F),
         documentation = unicode:characters_to_binary(mfa_detail(binary_to_list(FaText), [])),
         fa_label = unicode:characters_to_binary(io_lib:format("~p/~p", [F, A])),
@@ -342,6 +344,23 @@ completion({_, _, EditMod, NameBinary, _Document, _Line}) ->
 completion(Msg) ->
     ?V(Msg),
     [].
+
+get_function_uri(FName) ->
+    Function = fun(R, Acc) ->
+        case R#r_uri.type of
+            erl ->
+                case lists:any(fun(I) -> element(1, I#r_fa.fa) == FName end, R#r_uri.fa_list) of
+                    true ->
+                        [R#r_uri.uri|Acc];
+                    _ ->
+                        Acc
+                end;
+            _ ->
+                Acc
+        end
+    end,
+    UriL = ets:foldl(Function, [], r_uri),
+    UriL.
 
 mfa_label(R, RemainPrefix) ->
     [#{label => FA#r_fa.mfa_label,

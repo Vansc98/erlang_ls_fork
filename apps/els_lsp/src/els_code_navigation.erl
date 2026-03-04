@@ -78,14 +78,35 @@ goto_definition(
     end;
 goto_definition(
     Uri,
-    #{kind := atom, id := Id}
+    #{kind := atom, id := Id, range := #{from := From}} = PPP
 ) ->
     %% Two interesting cases for atoms: functions and modules.
     %% We return all function defs with any arity combined with module defs.
     DefsFun = find(Uri, function, {Id, any_arity}),
     case els_utils:find_module(Id) of
         {ok, ModUri} -> defs_to_res(DefsFun ++ find(ModUri, module, Id));
-        {error, _Error} -> defs_to_res(DefsFun)
+        {error, _Error} -> 
+            case DefsFun of 
+                [] ->
+                    {ok, Document} = els_utils:lookup_document(Uri),
+                    POIs = els_dt_document:pois(Document),
+                    ModL = [{Mod, To} || #{kind := atom, id := Mod, range := #{to := To}} <- POIs, To < From],
+                    case lists:reverse(lists:keysort(2, ModL)) of
+                        [{TargetMod, _} | _] ->
+                            case els_utils:find_module(TargetMod) of
+                                {ok, TargetUri} ->
+                                    UriL = [TargetUri];
+                                _ ->
+                                    UriL = els_mnesia:get_function_uri(Id)
+                            end;
+                        _ ->
+                            UriL = els_mnesia:get_function_uri(Id)
+                    end,
+                    OtherDefsFun = find(UriL, function, {Id, any_arity}),
+                    defs_to_res(OtherDefsFun);
+                _ ->
+                    defs_to_res(DefsFun)
+            end
     end;
 goto_definition(
     _Uri,
