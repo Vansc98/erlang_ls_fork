@@ -398,20 +398,20 @@ hook_source_finish(Source) ->
     cast(fun() ->
         case Source of
             otp ->
-                case erlang_bif() of
-                    [] ->
-                        Items = els_completion_provider:exported_definitions(erlang, function, args),
-                        set_val(erlang_bif, Items, true);
-                    _ ->
+                case get_val(erlang_bif, true) of
+                    undefined ->
+                        Items = els_completion_provider:exported_definitions(erlang, function, args);
+                    Items ->
                         ok
-                end;
+                end,
+                set_val(erlang_bif, Items, false);
             _ ->
                 ok
         end
     end).
 
 erlang_bif() ->
-    case get_val(erlang_bif, true) of
+    case get_val(erlang_bif, false) of
         undefined ->
             [];
         Bifs ->
