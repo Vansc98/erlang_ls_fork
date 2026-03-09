@@ -383,7 +383,11 @@ config_paths(RootPath, _Config) ->
 
 -spec default_config_paths(path()) -> [path()].
 default_config_paths(RootPath) ->
+    ConfigRoot = els_mnesia:root_dir(),
+    AutoConfigPath = filename:join([ConfigRoot, ?ALTERNATIVE_CONFIG_FILE]),
+    els_config_file:create_config(AutoConfigPath),
     [
+        AutoConfigPath,
         filename:join([RootPath, ?DEFAULT_CONFIG_FILE]),
         filename:join([RootPath, ?ALTERNATIVE_CONFIG_FILE])
     ].
