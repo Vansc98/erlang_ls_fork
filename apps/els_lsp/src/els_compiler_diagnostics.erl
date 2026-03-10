@@ -170,7 +170,7 @@ epp_diagnostic(Document, Anno, epp, {error, Anno, Reason}) ->
     %% Workaround for https://bugs.erlang.org/browse/ERL-1310
     epp_diagnostic(Document, Anno, epp, Reason);
 epp_diagnostic(Document, Anno, Module, Desc) ->
-    diagnostic(range(Document, Anno), Module, Desc, ?DIAGNOSTIC_ERROR).
+    diagnostic(range(Document, Anno, no_desc), Module, Desc, ?DIAGNOSTIC_ERROR).
 
 -spec parse_escript(uri()) -> [els_diagnostics:diagnostic()].
 parse_escript(Uri) ->
@@ -202,7 +202,7 @@ diagnostics(Path, List, Severity) ->
                     diagnostic(
                         Path,
                         MessagePath,
-                        range(Document, Anno),
+                        range(Document, Anno, Desc),
                         Document,
                         Module,
                         Desc,
@@ -244,14 +244,24 @@ diagnostic(_Path, MessagePath, Range, Document, Module, Desc0, Severity) ->
 diagnostic(Range, Module, Desc, Severity) ->
     Message0 = lists:flatten(Module:format_error(Desc)),
     Message = els_utils:to_binary(Message0),
-    Code = make_code(Module, Desc),
-    #{
-        range => els_protocol:range(Range),
-        message => Message,
-        severity => Severity,
-        source => source(),
-        code => Code
-    }.
+    case els_config:get(compiler_diagnostics_detail) of
+        true ->
+            Code = make_code(Module, Desc),
+            #{
+                range => els_protocol:range(Range),
+                message => Message,
+                severity => Severity,
+                source => source(),
+                code => Code
+            };
+        _ ->
+            #{
+                range => els_protocol:range(Range),
+                message => Message,
+                severity => Severity
+            }
+    end.  
+
 
 %% @doc NOP function for the call to 'Module:format_error/1' in diagnostic/4
 %% above.
@@ -692,10 +702,11 @@ make_code(Module, _Reason) ->
 
 -spec range(
     els_dt_document:item() | undefined,
-    erl_anno:anno() | none
+    erl_anno:anno() | none,
+    term()
 ) -> els_poi:poi_range().
-range(Document, Anno) ->
-    els_diagnostics_utils:range(Document, Anno).
+range(Document, Anno, Desc) ->
+    els_diagnostics_utils:range(Document, Anno, Desc).
 
 %% @doc Find the inclusion range for a header file.
 %%
@@ -710,7 +721,7 @@ inclusion_range(IncludePath, Document) ->
             inclusion_range(IncludePath, Document, parse_transform)
     of
         [Range | _] -> Range;
-        _ -> range(undefined, none)
+        _ -> range(undefined, none, no_desc)
     end.
 
 -spec inclusion_range(

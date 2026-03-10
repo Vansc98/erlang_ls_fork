@@ -9,6 +9,7 @@
 %% Includes
 %%==============================================================================
 -include("els_core.hrl").
+-include_lib("kernel/include/logger.hrl").
 
 -callback handle_request(provider_request()) -> provider_result().
 

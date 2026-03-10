@@ -11,6 +11,7 @@
     included_uris/1,
     included_documents/1,
     range/2,
+    range/3,
     traverse_include_graph/3
 ]).
 %%==============================================================================
@@ -47,8 +48,10 @@ find_included_document(Uri) ->
     erl_anno:anno() | none
 ) -> els_poi:poi_range().
 range(Document, none) ->
-    range(Document, erl_anno:new(1));
+    range(Document, erl_anno:new(1), no_other);
 range(Document, Anno) ->
+    range(Document, Anno, no_other).
+range(Document, Anno, Other) ->
     true = erl_anno:is_anno(Anno),
     Line = erl_anno:line(Anno),
     case erl_anno:column(Anno) of
@@ -74,9 +77,25 @@ range(Document, Anno) ->
                 {value, #{range := Range}} ->
                     Range;
                 false when POIs =:= [] ->
-                    #{from => {Line, 1}, to => {Line + 1, 1}};
+                    case Other of
+                        ["syntax error before: "|_] ->
+                            #{from => {Line, max(1, Col-1)}, to => {Line, Col}};
+                        _ ->
+                            #{from => {Line, 1}, to => {Line + 1, 1}}
+                    end;
                 false ->
-                    maps:get(range, hd(POIs))
+                    case {Other, hd(POIs)} of
+                        {{undefined_function, FuncID}, #{kind := export} = POI} ->
+                            ExportPOIs = els_dt_document:pois(Document, [export_entry]),
+                            case [Range || #{id := FID, range := Range} <- ExportPOIs, FID == FuncID] of
+                                [R|_] ->
+                                    R;
+                                _ ->
+                                  maps:get(range, POI)
+                            end;
+                        {_, POI} ->
+                            maps:get(range, POI)
+                    end
             end
     end.
 
