@@ -17,5 +17,7 @@ create_config(Path) ->
 file_text() ->
 <<"
 # 以下前缀的模块不会建立索引
-exclude_mfa_module_prefix: [gpb, cfg, mcm, proto_check, enif]
+exclude_module_prefix: [gpb, cfg, mcm, proto_check, enif]
+# 是否补全函数变量名
+var_name_completion: true
 "/utf8>>.

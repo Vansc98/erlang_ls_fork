@@ -333,7 +333,7 @@ need_index(Uri) ->
 
 exclude_erl(M) ->
     Mchars = atom_to_list(M),
-    ExL = els_config:get(exclude_mfa_module_prefix),
+    ExL = els_config:get(exclude_module_prefix),
     Pred = fun(Ex) ->
         match_prefix(Ex, Mchars)
     end,

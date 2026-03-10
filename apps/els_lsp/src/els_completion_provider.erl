@@ -1720,7 +1720,6 @@ completion_item(#{kind := Kind, id := {F, A}} = POI, Data, args, Uri) when
     Kind =:= function;
     Kind =:= type_definition
 ->
-    Args = args(POI, Uri),
     Label = io_lib:format("~p/~p", [F, A]),
     SnippetSupport = snippet_support(),
     Format =
@@ -1728,13 +1727,25 @@ completion_item(#{kind := Kind, id := {F, A}} = POI, Data, args, Uri) when
             true -> ?INSERT_TEXT_FORMAT_SNIPPET;
             false -> ?INSERT_TEXT_FORMAT_PLAIN_TEXT
         end,
-    #{
-        label => els_utils:to_binary(Label),
-        kind => completion_item_kind(Kind),
-        insertText => format_function(F, Args, SnippetSupport, Kind),
-        insertTextFormat => Format,
-        data => Data
-    };
+    case els_config:get(var_name_completion) of
+        true ->
+            Args = args(POI, Uri),
+            #{
+                label => els_utils:to_binary(Label),
+                kind => completion_item_kind(Kind),
+                insertText => format_function(F, Args, SnippetSupport, Kind),
+                insertTextFormat => Format,
+                data => Data
+            };
+        _ ->
+            #{
+                label => els_utils:to_binary(Label),
+                kind => completion_item_kind(Kind),
+                insertText => els_utils:to_binary([atom_to_label(F) | "(${1:})"]),
+                insertTextFormat => Format,
+                data => Data
+            }
+    end;
 completion_item(#{kind := Kind, id := {F, A}}, Data, no_args, _Uri) when
     Kind =:= function;
     Kind =:= type_definition
@@ -1858,6 +1869,7 @@ format_args(Name, Args0, SnippetSupport, Kind) ->
                 ["(", string:join(ArgList, ", "), ")"]
         end,
     els_utils:to_binary([Name | Args]).
+    
 
 -spec format_arg(els_arg:arg(), els_poi:poi_kind()) -> iolist().
 format_arg(Arg, Kind) ->

@@ -132,60 +132,78 @@ initialize(RootUri, Capabilities, InitOptions, ErrorReporting) ->
         end,
     do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}).
 
+
+-define(DEFAULT_CONFIG_LIST, [
+    {exclude_module_prefix, []},
+    {exclude_unused_includes, []},
+    {macros, []},
+    {plt_path, undefined},
+    {code_reload, disabled},
+    {providers, #{}},
+    {docs_memo, false},
+    {lenses, #{}},
+    {diagnostics, #{}},
+    {elvis_config_path, undefined},
+    {compiler_telemetry_enabled, false},
+    {edoc_custom_tags, []},
+    {edoc_parse_enabled, true},
+    {incremental_sync, false},
+    {inlay_hints_enabled, false},
+    {refactorerl, notconfigured},
+    {formatting, #{}},
+    {erls_dirs, []},
+    {otp_path, code:root_dir()},
+    {code_path_extra_dirs, []},
+    {compiler_diagnostics_detail, false},
+    {var_name_completion, true},
+    {otp_apps_exclude, ?DEFAULT_EXCLUDED_OTP_APPS},
+    {wrangler, notconfigured},
+
+    {runtime, {map_merge, els_config_runtime:default_config()}},
+    {'ct-run-test', {map_merge, els_config_ct_run_test:default_config()}},
+    {indexing, {map_merge, els_config_indexing:default_config()}},
+
+    {deps_dirs, DefaultDepsDirs},
+    {apps_dirs, DefaultAppsDirs},
+    {include_dirs, DefaultIncludeDirs},
+    {apps_paths, AppAndIncludeDirs},
+    {search_paths, AppAndIncludeDirs}
+]).
+
+init_default({AtomKey, {map_merge, Default}}, Config) ->
+    ok = set(AtomKey, maps:merge(Default, maps:get(atom_to_list(AtomKey), Config, #{}))),
+    Config;
+init_default({AtomKey, Default}, Config) ->
+    ok = set(AtomKey, maps:get(atom_to_list(AtomKey), Config, Default)),
+    Config.
+
+
 -spec do_initialize(uri(), map(), map(), {undefined | path(), map()}) -> ok.
 do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
-    put(erls_dirs, maps:get("erls_dirs", Config, [])),
+    ok = set(root_uri, RootUri),
+    ok = set(capabilities, Capabilities),
+    ok = set(config_path, ConfigPath),
+    ok = set(indexing_enabled, maps:get(<<"indexingEnabled">>, InitOptions, true)),
+
     RootPath = els_utils:to_list(els_uri:path(RootUri)),
-    OtpPath = maps:get("otp_path", Config, code:root_dir()),
-    ?LOG_INFO("OTP Path: ~p", [OtpPath]),
-    {DefaultDepsDirs, DefaultAppsDirs, DefaultIncludeDirs} =
-        get_default_dirs(RootPath),
-    DepsDirs = maps:get("deps_dirs", Config, DefaultDepsDirs),
-    AppsDirs = maps:get("apps_dirs", Config, DefaultAppsDirs),
-    IncludeDirs = maps:get("include_dirs", Config, DefaultIncludeDirs),
-    ExcludeUnusedIncludes = maps:get("exclude_unused_includes", Config, []),
-    Macros = maps:get("macros", Config, []),
-    DialyzerPltPath = maps:get("plt_path", Config, undefined),
-    OtpAppsExclude = maps:get(
-        "otp_apps_exclude",
-        Config,
-        ?DEFAULT_EXCLUDED_OTP_APPS
-    ),
-    Lenses = maps:get("lenses", Config, #{}),
-    Diagnostics = maps:get("diagnostics", Config, #{}),
-    ExcludePathsSpecs = [[OtpPath, "lib", P ++ "*"] || P <- OtpAppsExclude],
+    {DefaultDepsDirs, DefaultAppsDirs, DefaultIncludeDirs} = get_default_dirs(RootPath),
+    AppAndIncludeDirs = find_dirs(RootPath, [".erl",".hrl"]),
+
+    lists:foldl(fun init_default/2, Config, ?DEFAULT_CONFIG_LIST),
+
+    ExcludePathsSpecs = [[els_config:get(otp_path), "lib", P ++ "*"] || P <- els_config:get(otp_apps_exclude)],
     ExcludePaths = els_utils:resolve_paths(ExcludePathsSpecs, true),
-    ?LOG_INFO("Excluded OTP Applications: ~p", [OtpAppsExclude]),
-    CodeReload = maps:get("code_reload", Config, disabled),
-    Runtime = maps:get("runtime", Config, #{}),
-    CtRunTest = maps:get("ct-run-test", Config, #{}),
-    CodePathExtraDirs = maps:get("code_path_extra_dirs", Config, []),
-    ExMfaModPre = maps:get("exclude_mfa_module_prefix", Config, []),
-    ok = set(exclude_mfa_module_prefix, ExMfaModPre),
-    % els_beam_mfa:set_exclude_list(ExMfaModPre),
-    ok = add_code_paths(CodePathExtraDirs, RootPath),
-    ElvisConfigPath = maps:get("elvis_config_path", Config, undefined),
-    IncrementalSync = maps:get("incremental_sync", Config, false),
-    Indexing = maps:get("indexing", Config, #{}),
-    CompilerTelemetryEnabled =
-        maps:get("compiler_telemetry_enabled", Config, false),
-    EDocCustomTags = maps:get("edoc_custom_tags", Config, []),
 
-    IndexingEnabled = maps:get(<<"indexingEnabled">>, InitOptions, true),
-
-    RefactorErl = maps:get("refactorerl", Config, notconfigured),
-    Providers = maps:get("providers", Config, #{}),
-    EdocParseEnabled = maps:get("edoc_parse_enabled", Config, true),
-    InlayHintsEnabled = maps:get("inlay_hints_enabled", Config, false),
-    Formatting = maps:get("formatting", Config, #{}),
-    DocsMemo = maps:get("docs_memo", Config, false),
+    ok = set(deps_paths, project_paths(RootPath, els_config:get(deps_dirs), false, els_config:get(erls_dirs))),
+    ok = set(include_paths, [filename:join([RootPath, "apps"])] ++ find_dirs(RootPath, [".hrl"])),
+    ok = set(otp_paths, otp_paths(els_config:get(otp_path), false) -- ExcludePaths),
+    ok = add_code_paths(els_config:get(code_path_extra_dirs), RootPath),
 
     %% Initialize and start Wrangler
-    case maps:get("wrangler", Config, notconfigured) of
+    case els_config:get(wrangler) of
         notconfigured ->
-            ok = set(wrangler, notconfigured);
+            ok;
         Wrangler ->
-            ok = set(wrangler, Wrangler),
             case maps:get("path", Wrangler, notconfigured) of
                 notconfigured ->
                     ?LOG_INFO(
@@ -218,77 +236,6 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
                     ?LOG_INFO("Wrangler could not be loaded: ~p", [Reason])
             end
     end,
-
-    %% Passed by the LSP client
-    ok = set(root_uri, RootUri),
-    %% Read from the configuration file
-    ok = set(config_path, ConfigPath),
-    ok = set(otp_path, OtpPath),
-    ok = set(deps_dirs, DepsDirs),
-    ok = set(apps_dirs, AppsDirs),
-    ok = set(include_dirs, IncludeDirs),
-    ok = set(exclude_unused_includes, ExcludeUnusedIncludes),
-    ok = set(macros, Macros),
-    ok = set(plt_path, DialyzerPltPath),
-    ok = set(code_reload, CodeReload),
-    ok = set(providers, Providers),
-    ok = set(docs_memo, DocsMemo),
-    ?LOG_INFO("Config=~p", [Config]),
-    ok = set(
-        runtime,
-        maps:merge(
-            els_config_runtime:default_config(),
-            Runtime
-        )
-    ),
-    ok = set(
-        'ct-run-test',
-        maps:merge(
-            els_config_ct_run_test:default_config(),
-            CtRunTest
-        )
-    ),
-    ok = set(elvis_config_path, ElvisConfigPath),
-    ok = set(compiler_telemetry_enabled, CompilerTelemetryEnabled),
-    ok = set(edoc_custom_tags, EDocCustomTags),
-    ok = set(edoc_parse_enabled, EdocParseEnabled),
-    ok = set(incremental_sync, IncrementalSync),
-    ok = set(inlay_hints_enabled, InlayHintsEnabled),
-    ok = set(
-        indexing,
-        maps:merge(
-            els_config_indexing:default_config(),
-            Indexing
-        )
-    ),
-    %% Calculated from the above
-    AppAndIncludeDirs = find_dirs(RootPath, [".erl",".hrl"]),
-    ok = set(apps_paths, AppAndIncludeDirs),
-    % ok = set(apps_paths, project_paths(RootPath, AppsDirs, false)),
-    ok = set(deps_paths, project_paths(RootPath, DepsDirs, false)),
-    % ok = set(include_paths, include_paths(RootPath, IncludeDirs, false)),
-    ok = set(include_paths, [filename:join([RootPath, "apps"])] ++ find_dirs(RootPath, [".hrl"])),
-    ok = set(otp_paths, otp_paths(OtpPath, false) -- ExcludePaths),
-    ok = set(lenses, Lenses),
-    ok = set(diagnostics, Diagnostics),
-    ok = set(
-        search_paths,
-        AppAndIncludeDirs
-        % lists:usort(
-        %     lists:append([
-        %         project_paths(RootPath, AppsDirs, true),
-        %         project_paths(RootPath, DepsDirs, true),
-        %         include_paths(RootPath, IncludeDirs, false),
-        %         otp_paths(OtpPath, true)
-        %     ])
-        % )
-    ),
-    %% Init Options
-    ok = set(capabilities, Capabilities),
-    ok = set(indexing_enabled, IndexingEnabled),
-
-    ok = set(refactorerl, RefactorErl),
-    ok = set(formatting, Formatting),
     ok.
 
 -spec get_default_dirs(string()) ->
@@ -581,15 +528,15 @@ check_dir(Path, _File) ->
             end
     end.
 
--spec project_paths(path(), [string()], boolean()) -> [string()].
-project_paths(RootPath, Dirs, Recursive) ->
+-spec project_paths(path(), [string()], boolean(), list()) -> [string()].
+project_paths(RootPath, Dirs, Recursive, ErlsDirs) ->
     Paths = [
         els_utils:resolve_paths(
             [
                 [RootPath, Dir, "src"],
                 [RootPath, Dir, "test"],
                 [RootPath, Dir, "include"]
-                | [[RootPath, Dir, Src] || Src <- erlang:get(erls_dirs)]
+                | [[RootPath, Dir, Src] || Src <- ErlsDirs]
             ],
             Recursive
         )
@@ -648,8 +595,6 @@ add_code_paths(WCDirs, RootDir) ->
         end
     ],
     lists:foreach(AddADir, Dirs).
-    % ?LOG_ERROR("cccccccccccccc:~p", [code:get_path()]),
-    % ?LOG_ERROR("cccccccccccccc:~p", [catch cfg_act_theme:find(1)]).
 
 -spec expand_env_vars(binary()) -> binary().
 expand_env_vars(Bin) ->
