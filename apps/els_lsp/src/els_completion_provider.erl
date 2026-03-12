@@ -1728,7 +1728,7 @@ completion_item(#{kind := Kind, id := {F, A}} = POI, Data, args, Uri) when
             false -> ?INSERT_TEXT_FORMAT_PLAIN_TEXT
         end,
     case els_config:get(var_name_completion) of
-        true ->
+        true -> %% 补全函数变量名
             Args = args(POI, Uri),
             #{
                 label => els_utils:to_binary(Label),

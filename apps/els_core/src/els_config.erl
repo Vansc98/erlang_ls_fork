@@ -134,6 +134,7 @@ initialize(RootUri, Capabilities, InitOptions, ErrorReporting) ->
 
 
 -define(DEFAULT_CONFIG_LIST, [
+    {hover_function_detail, true},
     {exclude_module_prefix, []},
     {exclude_unused_includes, []},
     {macros, []},

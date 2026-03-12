@@ -42,11 +42,23 @@
 %% API
 %%==============================================================================
 -spec docs(uri(), els_poi:poi()) -> [els_markup_content:doc_entry()].
-docs(_Uri, #{kind := Kind, id := {M, F, A}}) when
+docs(_Uri, #{kind := Kind, id := {M, F, A}} = POI) when
     Kind =:= application;
     Kind =:= implicit_fun
 ->
-    function_docs('remote', M, F, A);
+    case els_config:get(hover_function_detail) == true andalso els_utils:find_module(M) of
+        {ok, Uri} ->
+            case els_code_navigation:goto_definition(Uri, POI) of
+                {ok, [{DefUri, #{data := #{symbol_range := ValueRange}}}]} ->
+                    ValueText = get_valuetext(DefUri, ValueRange),
+                    DefText = [{code_line, ValueText}];
+                _ ->
+                    DefText = []
+            end;
+        _ ->
+            DefText = []
+    end,
+    function_docs('remote', M, F, A) ++ DefText;
 docs(Uri, #{kind := Kind, id := {F, A}}) when
     Kind =:= application;
     Kind =:= implicit_fun;

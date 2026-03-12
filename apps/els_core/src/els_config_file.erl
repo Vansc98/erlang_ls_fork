@@ -18,6 +18,10 @@ file_text() ->
 <<"
 # 以下前缀的模块不会建立索引
 exclude_module_prefix: [gpb, cfg, mcm, proto_check, enif]
-# 是否补全函数变量名
+
+# 是否补全函数变量名(修改此选项需要删除mnesia目录,重新建立索引)
 var_name_completion: true
+
+# 鼠标悬停时查看function的完整实现
+hover_function_detail: true
 "/utf8>>.
