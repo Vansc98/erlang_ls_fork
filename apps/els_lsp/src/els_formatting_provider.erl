@@ -26,7 +26,14 @@
 %% els_provider functions
 %%==============================================================================
 -spec handle_request(any()) -> {response, any()}.
-handle_request({document_formatting, Params}) ->
+handle_request(Request) ->
+    case els_config:get(document_formatting) of
+        true ->
+            do_handle_request(Request);
+        _ ->
+            {response, []}
+    end.
+do_handle_request({document_formatting, Params}) ->
     #{
         <<"options">> := Options,
         <<"textDocument">> := #{<<"uri">> := Uri}
@@ -39,7 +46,7 @@ handle_request({document_formatting, Params}) ->
         RelativePath ->
             format_document(Path, Document, RelativePath, Options)
     end;
-handle_request({document_rangeformatting, Params}) ->
+do_handle_request({document_rangeformatting, Params}) ->
     #{
         <<"range">> := #{
             <<"start">> := StartPos,
@@ -55,7 +62,7 @@ handle_request({document_rangeformatting, Params}) ->
 %% NOTE: because erlang_ls does not send incremental document changes
 %%       via `textDocument/didChange`, this kind of formatting does not
 %%       make sense.
-handle_request({document_ontypeformatting, Params}) ->
+do_handle_request({document_ontypeformatting, Params}) ->
     #{
         <<"position">> := #{
             <<"line">> := Line,

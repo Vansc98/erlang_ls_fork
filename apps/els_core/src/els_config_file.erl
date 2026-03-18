@@ -24,4 +24,7 @@ var_name_completion: true
 
 # 鼠标悬停时查看function的完整实现
 hover_function_detail: true
+
+# 允许代码格式化
+document_formatting: false
 "/utf8>>.

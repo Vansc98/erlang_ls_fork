@@ -159,6 +159,7 @@ initialize(RootUri, Capabilities, InitOptions, ErrorReporting) ->
     {var_name_completion, true},
     {otp_apps_exclude, ?DEFAULT_EXCLUDED_OTP_APPS},
     {wrangler, notconfigured},
+    {document_formatting, false},
 
     {runtime, {map_merge, els_config_runtime:default_config()}},
     {'ct-run-test', {map_merge, els_config_ct_run_test:default_config()}},
