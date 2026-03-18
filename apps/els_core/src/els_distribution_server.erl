@@ -239,7 +239,8 @@ node_name(Prefix, Name0) ->
 node_int() ->
     % RootUri = els_config:get(root_uri),
     {ok, CurrentDir} = file:get_cwd(),
-    erlang:phash2(CurrentDir).
+    ClientName = els_config:get(client_name),
+    erlang:phash2({ClientName, CurrentDir}).
 
 -spec normalize_node_name(string() | binary()) -> string().
 normalize_node_name(Name) ->

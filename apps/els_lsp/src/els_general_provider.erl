@@ -81,6 +81,9 @@ handle_request({initialize, Params}) ->
             _ ->
                 #{}
         end,
+    ClientInfo = maps:get(<<"clientInfo">>, Params, #{}),
+    ClientName = maps:get(<<"name">>, ClientInfo, <<"no_name">>),
+    els_config:set(client_name, ClientName),
     ok = els_config:initialize(RootUri, Capabilities, InitOptions, lsp_notification),
     {response, server_capabilities()};
 handle_request({initialized, _Params}) ->
