@@ -84,17 +84,7 @@ start_link() ->
     case is_pid(els_mnesia:get_val(io_listener)) of
         false -> %% 首次启动
             Cb = fun(Requests) ->
-                case is_process_alive(Pid) of
-                    true ->
-                        gen_server:cast(Pid, {process_requests, Requests});
-                    _ ->
-                        case whereis(els_server) of
-                            RestartPid when is_pid(RestartPid) ->
-                                gen_server:cast(RestartPid, {process_requests, Requests});
-                            _ ->
-                                ok
-                        end
-                end
+                gen_server:cast(els_server, {process_requests, Requests})
             end,
             {ok, IoListener} = els_stdio:start_listener(Cb),
             els_mnesia:set_val(io_listener, IoListener);
@@ -245,8 +235,8 @@ handle_info(_Request, State) ->
     {noreply, State}.
 
 -spec terminate(any(), els_server:state()) -> ok.
-terminate(_Reason, #{in_progress := InProgress}) ->
-    [els_background_job:stop(Job) || {_Uri, Job} <- InProgress],
+terminate(_Reason, #{in_progress := _InProgress}) ->
+    % [els_background_job:stop(Job) || {_Uri, Job} <- InProgress],
     ok.
 
 %%==============================================================================

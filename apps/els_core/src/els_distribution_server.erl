@@ -69,7 +69,7 @@ start_distribution(Name) ->
 -spec start_distribution(atom(), atom(), atom(), shortnames | longnames) ->
     ok | {error, any()}.
 start_distribution(Name, RemoteNode, Cookie, NameType) ->
-    NodeCookie = erlang_ls,
+    NodeCookie = els,
     case net_kernel:start([Name, NameType]) of
         {ok, _Pid} ->
             case Cookie of

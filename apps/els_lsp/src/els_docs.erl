@@ -51,7 +51,7 @@ docs(_Uri, #{kind := Kind, id := {M, F, A}} = POI) when
             case els_code_navigation:goto_definition(Uri, POI) of
                 {ok, [{DefUri, #{data := #{symbol_range := ValueRange}}}]} ->
                     ValueText = get_valuetext(DefUri, ValueRange),
-                    DefText = [{code_line, ValueText}];
+                    DefText = [{h4, "✒️函数实现"},{code_line, ValueText}];
                 _ ->
                     DefText = []
             end;
@@ -117,7 +117,7 @@ function_docs(Type, M, F, A) ->
         true ->
             function_docs(Type, M, F, A, els_config:get(docs_memo));
         false ->
-            Sig = {h2, signature(Type, M, F, A)},
+            Sig = {h4, signature(Type, M, F, A)},
             L = [
                 function_clauses(M, F, A),
                 specs(M, F, A)
@@ -154,7 +154,7 @@ function_docs(Type, M, F, A, false = _DocsMemo) ->
                 {error, not_available} ->
                     %% We cannot fetch the EEP-48 style docs, so instead we create
                     %% something similar using the tools we have.
-                    Sig = {h2, signature(Type, M, F, A)},
+                    Sig = {h4, signature(Type, M, F, A)},
                     L = [
                         function_clauses(M, F, A),
                         specs(M, F, A),

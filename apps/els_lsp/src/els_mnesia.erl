@@ -20,6 +20,9 @@
 -export([hook_source_finish/1]).
 -export([erlang_bif/0]).
 -export([get_function_uri/1]).
+-export([add_job/1]).
+-export([del_job/1]).
+-export([all_jobs/0]).
 -record(state, {
 }).
 
@@ -29,6 +32,7 @@ start_link() ->
 init(_Args) ->
     put(server_flag, ?SERVER),
     ets:new(?ETS_KV, [named_table, public, set, {keypos, 2}, {read_concurrency, true}]),
+    ets:new(?ETS_JOB_POOL, [named_table, public, set, {keypos, 2}, {read_concurrency, true}]),
     erlang:send_after(1000, self(), loop),
     {ok, #state{}}.
 is_server() ->
@@ -64,6 +68,13 @@ get_val(Key, _IsMnesia = false) ->
             undefined
     end.
 
+add_job(Job) ->
+    ets:insert(?ETS_JOB_POOL, Job).
+del_job(Token) ->
+    ets:delete(?ETS_JOB_POOL, Token).
+all_jobs() ->
+    ets:tab2list(?ETS_JOB_POOL).
+
 get_uri(Uri) when is_binary(Uri) ->
     mnesia:dirty_read(r_uri, Uri);
 get_uri(M) when is_atom(M) ->
@@ -93,7 +104,7 @@ check_els_server_message() ->
     case whereis(els_server) of
         Pid when is_pid(Pid) ->
             case process_info(Pid, message_queue_len) of
-                {message_queue_len, Len} when Len >= 10 ->
+                {message_queue_len, Len} when Len >= 50 ->
                     catch els_server:restart();
                 _ ->
                     ok

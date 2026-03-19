@@ -7,7 +7,7 @@
 %% Macros
 %%==============================================================================
 -define(METHOD, <<"$/progress">>).
-
+-include("els_lsp.hrl").
 %%==============================================================================
 %% Exports
 %%==============================================================================
@@ -40,6 +40,9 @@ send_notification(Token, Value) ->
         value => Value
     },
     els_server:send_notification(?METHOD, Params).
+    % IoDevice = els_mnesia:get_val(io_device),
+    % Notification = els_protocol:notification(?METHOD, Params),
+    % els_stdio:send(IoDevice, Notification).
 
 -spec token() -> token().
 token() ->

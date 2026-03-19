@@ -89,7 +89,8 @@ handle_request({initialize, Params}) ->
 handle_request({initialized, _Params}) ->
     RootUri = els_config:get(root_uri),
     NodeName = els_distribution_server:node_name(
-        <<"erlang_ls">>,
+        % <<"erlang_ls">>,
+        <<"els">>,
         filename:basename(RootUri)
     ),
     register_capabilities(),

@@ -45,4 +45,13 @@
     key = undefined,
     value = undefined
 }).
+-define(ETS_JOB_POOL, ets_job_pool).
+-record(r_bg_job, {
+    token = <<>>,
+    title = <<>>,
+    total = 0,
+    pid = self(),
+    els_server = whereis(els_server)
+}).
+
 -endif.
