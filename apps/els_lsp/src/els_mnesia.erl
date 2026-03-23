@@ -76,7 +76,13 @@ all_jobs() ->
     ets:tab2list(?ETS_JOB_POOL).
 
 get_uri(Uri) when is_binary(Uri) ->
-    mnesia:dirty_read(r_uri, Uri);
+    case mnesia:dirty_read(r_uri, Uri) of
+        [] ->
+            BaseName = Uri,
+            mnesia:dirty_select(r_uri, [{#r_uri{basename = BaseName, _ = '_'}, [], ['$_']}]);
+        L ->
+            L
+    end;
 get_uri(M) when is_atom(M) ->
     mnesia:dirty_select(r_uri, [{#r_uri{basename = M, _ = '_'}, [], ['$_']}]).
 

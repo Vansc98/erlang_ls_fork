@@ -51,7 +51,7 @@ docs(_Uri, #{kind := Kind, id := {M, F, A}} = POI) when
             case els_code_navigation:goto_definition(Uri, POI) of
                 {ok, [{DefUri, #{data := #{symbol_range := ValueRange}}}]} ->
                     ValueText = get_valuetext(DefUri, ValueRange),
-                    DefText = [{h4, "✒️函数实现"},{code_line, ValueText}];
+                    DefText = [{h4, "_________________________________________________________________________✒️"},{code_line, ValueText}];
                 _ ->
                     DefText = []
             end;
