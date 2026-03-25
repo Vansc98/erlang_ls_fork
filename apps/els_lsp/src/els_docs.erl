@@ -41,25 +41,36 @@
 %%==============================================================================
 %% API
 %%==============================================================================
+def_text(M, POI) when is_atom(M) ->
+    case els_config:get(hover_function_detail) == true andalso els_utils:find_module(M) of
+        {ok, Uri} ->
+            def_text_1(Uri, POI);
+        _ ->
+            []
+    end;
+def_text(Uri, POI) ->
+    case els_config:get(hover_function_detail) of
+        true ->
+            def_text_1(Uri, POI);
+        _ ->
+            []
+    end.
+def_text_1(Uri, POI) ->
+    case els_code_navigation:goto_definition(Uri, POI) of
+        {ok, [{DefUri, #{data := #{symbol_range := ValueRange}}}]} ->
+            ValueText = get_valuetext(DefUri, ValueRange),
+            [{h4, "_________________________________________________________________________✒️"},{code_line, ValueText}];
+        _ ->
+            []
+    end.
+
 -spec docs(uri(), els_poi:poi()) -> [els_markup_content:doc_entry()].
 docs(_Uri, #{kind := Kind, id := {M, F, A}} = POI) when
     Kind =:= application;
     Kind =:= implicit_fun
-->
-    case els_config:get(hover_function_detail) == true andalso els_utils:find_module(M) of
-        {ok, Uri} ->
-            case els_code_navigation:goto_definition(Uri, POI) of
-                {ok, [{DefUri, #{data := #{symbol_range := ValueRange}}}]} ->
-                    ValueText = get_valuetext(DefUri, ValueRange),
-                    DefText = [{h4, "_________________________________________________________________________✒️"},{code_line, ValueText}];
-                _ ->
-                    DefText = []
-            end;
-        _ ->
-            DefText = []
-    end,
-    function_docs('remote', M, F, A) ++ DefText;
-docs(Uri, #{kind := Kind, id := {F, A}}) when
+->  
+    function_docs('remote', M, F, A) ++ def_text(M, POI);
+docs(Uri, #{kind := Kind, id := {F, A}} = POI) when
     Kind =:= application;
     Kind =:= implicit_fun;
     Kind =:= export_entry;
@@ -67,10 +78,10 @@ docs(Uri, #{kind := Kind, id := {F, A}}) when
     Kind =:= spec
 ->
     M = els_uri:module(Uri),
-    function_docs('local', M, F, A);
-docs(Uri, #{kind := function_clause, id := {F, A, _Index}}) ->
+    function_docs('local', M, F, A) ++ def_text(Uri, POI);
+docs(Uri, #{kind := function_clause, id := {F, A, _Index}} = POI) ->
     M = els_uri:module(Uri),
-    function_docs('local', M, F, A);
+    function_docs('local', M, F, A) ++ def_text(Uri, POI);
 docs(Uri, #{kind := macro, id := Name} = POI) ->
     case els_code_navigation:goto_definition(Uri, POI) of
         {ok, [{DefUri, #{data := #{args := Args, value_range := ValueRange}}}]} when
