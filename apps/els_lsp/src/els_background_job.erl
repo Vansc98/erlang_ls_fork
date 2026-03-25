@@ -286,7 +286,7 @@ noop(_) ->
     boolean()
 ) ->
     ok.
-notify_begin(Token, Title, Total, true, ShowPercentages) ->
+notify_begin(Token, Title, Total, true, ShowPercentages) when Total > 0 ->
     BeginMsg = progress_msg(0, Total),
     Begin =
         case ShowPercentages of
@@ -294,7 +294,7 @@ notify_begin(Token, Title, Total, true, ShowPercentages) ->
             false -> els_work_done_progress:value_begin(Title, BeginMsg)
         end,
     els_progress:send_notification(Token, Begin);
-notify_begin(_Token, _Title, _Total, false, _ShowPercentages) ->
+notify_begin(_Token, _Title, _Total, _false, _ShowPercentages) ->
     ok.
 
 -spec notify_report(
@@ -305,7 +305,7 @@ notify_begin(_Token, _Title, _Total, false, _ShowPercentages) ->
     boolean(),
     boolean()
 ) -> ok.
-notify_report(Token, Current, Step, Total, true, true) ->
+notify_report(Token, Current, Step, Total, true, true) when Total > 0 ->
     Percentage = floor(Current * Step),
     ReportMsg = progress_msg(Current, Total),
     Report = els_work_done_progress:value_report(ReportMsg, Percentage),
@@ -321,11 +321,11 @@ notify_report(
     ok.
 
 -spec notify_end(els_progress:token(), pos_integer(), boolean()) -> ok.
-notify_end(Token, Total, true) ->
+notify_end(Token, Total, true) when Total > 0 ->
     EndMsg = progress_msg(Total, Total),
     End = els_work_done_progress:value_end(EndMsg),
     els_progress:send_notification(Token, End);
-notify_end(_Token, _Total, false) ->
+notify_end(_Token, _Total, _false) ->
     ok.
 
 -spec spinning_wheel(els_progress:token()) -> no_return().

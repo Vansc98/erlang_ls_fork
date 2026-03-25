@@ -107,7 +107,10 @@ send_notification(Method, Params) ->
 
 -spec send_request(binary(), map()) -> ok.
 send_request(Method, Params) ->
-    gen_server:cast(?SERVER, {request, Method, Params}).
+    % gen_server:cast(?SERVER, {request, Method, Params}).
+    RequestId = els_mnesia:get_request_id(),
+    Request = els_protocol:request(RequestId, Method, Params),
+    send(Request, els_mnesia:get_val(io_device)).
 
 -spec send_response(pid(), any()) -> ok.
 send_response(Job, Result) ->
@@ -353,13 +356,10 @@ do_send_notification(Method, Params, State) ->
     send(Notification, State).
 
 -spec do_send_request(binary(), map(), state()) -> state().
-do_send_request(Method, Params, #{request_id := RequestId0} = State0) ->
-    RequestId = RequestId0 + 1,
+do_send_request(Method, Params, #{request_id := _RequestId0} = State0) ->
+    % RequestId = RequestId0 + 1,
+    RequestId = els_mnesia:get_request_id(),
     Request = els_protocol:request(RequestId, Method, Params),
-    ?LOG_DEBUG(
-        "[SERVER] Sending request [request=~p]",
-        [Request]
-    ),
     send(Request, State0),
     State0#{request_id => RequestId}.
 
@@ -384,7 +384,9 @@ do_send_response(Job, Result, State0) ->
             State0#{pending => Pending}
     end.
 
--spec send(binary(), state()) -> ok.
+-spec send(binary()|pid(), state()) -> ok.
+send(Payload, IoDevice) when is_pid(IoDevice) ->
+    els_stdio:send(IoDevice, Payload);
 send(Payload, #{io_device := IoDevice}) ->
     els_stdio:send(IoDevice, Payload).
 

@@ -23,6 +23,7 @@
 -export([add_job/1]).
 -export([del_job/1]).
 -export([all_jobs/0]).
+-export([get_request_id/0]).
 -record(state, {
 }).
 
@@ -33,6 +34,7 @@ init(_Args) ->
     put(server_flag, ?SERVER),
     ets:new(?ETS_KV, [named_table, public, set, {keypos, 2}, {read_concurrency, true}]),
     ets:new(?ETS_JOB_POOL, [named_table, public, set, {keypos, 2}, {read_concurrency, true}]),
+    set_val(request_id, 0),
     erlang:send_after(1000, self(), loop),
     {ok, #state{}}.
 is_server() ->
@@ -67,6 +69,9 @@ get_val(Key, _IsMnesia = false) ->
         [] ->
             undefined
     end.
+
+get_request_id() ->
+    ets:update_counter(?ETS_KV, request_id, {3,1}).
 
 add_job(Job) ->
     ets:insert(?ETS_JOB_POOL, Job).
@@ -110,7 +115,7 @@ check_els_server_message() ->
     case whereis(els_server) of
         Pid when is_pid(Pid) ->
             case process_info(Pid, message_queue_len) of
-                {message_queue_len, Len} when Len >= 50 ->
+                {message_queue_len, Len} when Len >= 10 ->
                     catch els_server:restart();
                 _ ->
                     ok

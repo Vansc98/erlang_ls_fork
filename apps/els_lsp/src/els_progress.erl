@@ -39,10 +39,9 @@ send_notification(Token, Value) ->
         token => Token,
         value => Value
     },
-    els_server:send_notification(?METHOD, Params).
-    % IoDevice = els_mnesia:get_val(io_device),
-    % Notification = els_protocol:notification(?METHOD, Params),
-    % els_stdio:send(IoDevice, Notification).
+    % els_server:send_notification(?METHOD, Params).
+    Notification = els_protocol:notification(?METHOD, Params),
+    els_stdio:send(els_mnesia:get_val(io_device), Notification).
 
 -spec token() -> token().
 token() ->
