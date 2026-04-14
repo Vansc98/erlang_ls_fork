@@ -5,9 +5,7 @@
     init/1,
     send/2
 ]).
-
 -export([loop/4]).
-
 %%==============================================================================
 %% Includes
 %%==============================================================================
@@ -42,13 +40,18 @@ send(IoDevice, Payload) ->
 loop(Lines, IoDevice, Cb, JsonDecoder) ->
     case io:get_line(IoDevice, "") of
         <<"\n">> ->
-            Headers = parse_headers(Lines),
-            BinLength = proplists:get_value(<<"content-length">>, Headers),
-            Length = binary_to_integer(BinLength),
-            %% Use file:read/2 since it reads bytes
-            {ok, Payload} = file:read(IoDevice, Length),
-            Request = JsonDecoder(Payload),
-            Cb([Request]),
+            try
+                Headers = parse_headers(Lines),
+                BinLength = proplists:get_value(<<"content-length">>, Headers),
+                Length = binary_to_integer(BinLength),
+                %% Use file:read/2 since it reads bytes
+                {ok, Payload} = file:read(IoDevice, Length),
+                Request = JsonDecoder(Payload),
+                Cb([Request])
+            catch
+                Class:ExceptionPattern:Stacktrace ->
+                    ?LOG_ERROR("Class:~p~nExceptionPattern:~p~nStacktrace:~w~n", [Class, ExceptionPattern, Stacktrace])
+            end,
             ?MODULE:loop([], IoDevice, Cb, JsonDecoder);
         eof ->
             Cb([
