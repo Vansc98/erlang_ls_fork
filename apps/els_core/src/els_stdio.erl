@@ -42,8 +42,14 @@ loop(Lines, IoDevice, Cb, JsonDecoder) ->
         <<"\n">> ->
             try
                 Headers = parse_headers(Lines),
-                BinLength = proplists:get_value(<<"content-length">>, Headers),
-                Length = binary_to_integer(BinLength),
+                BinLength0 = proplists:get_value(<<"content-length">>, Headers),
+                case BinLength0 of
+                    undefined ->
+                        Length = 1,
+                        ?LOG_ERROR("Headers:~p", [Headers]);
+                    BinLength ->
+                        Length = binary_to_integer(BinLength)
+                end,
                 %% Use file:read/2 since it reads bytes
                 {ok, Payload} = file:read(IoDevice, Length),
                 Request = JsonDecoder(Payload),
