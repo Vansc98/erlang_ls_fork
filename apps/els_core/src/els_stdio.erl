@@ -6,6 +6,7 @@
     send/2
 ]).
 -export([loop/4]).
+-export([parse_headers/1]).
 %%==============================================================================
 %% Includes
 %%==============================================================================
@@ -45,8 +46,12 @@ loop(Lines, IoDevice, Cb, JsonDecoder) ->
                 BinLength0 = proplists:get_value(<<"content-length">>, Headers),
                 case BinLength0 of
                     undefined ->
-                        Length = 1,
-                        ?LOG_ERROR("Headers:~p", [Headers]);
+                        case Headers of
+                            [{_, LenBin}] ->
+                                Length = try_parse_len(LenBin);
+                            _ ->
+                                Length = 1
+                        end;
                     BinLength ->
                         Length = binary_to_integer(BinLength)
                 end,
@@ -78,3 +83,11 @@ parse_headers(Lines) ->
 parse_header(Line) ->
     [Name, Value] = binary:split(Line, <<":">>),
     {string:trim(string:lowercase(Name)), string:trim(Value)}.
+
+
+try_parse_len(<<>>) ->
+	1;
+try_parse_len(<<"Content-Length: ", Bin/binary>>) ->
+	binary_to_integer(Bin);
+try_parse_len(<<_:8, Bin/binary>>) ->
+	try_parse_len(Bin).
