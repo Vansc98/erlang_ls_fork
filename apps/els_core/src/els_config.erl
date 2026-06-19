@@ -197,7 +197,9 @@ do_initialize(RootUri, Capabilities, InitOptions, {ConfigPath, Config}) ->
     ExcludePaths = els_utils:resolve_paths(ExcludePathsSpecs, true),
 
     ok = set(deps_paths, project_paths(RootPath, els_config:get(deps_dirs), false, els_config:get(erls_dirs))),
-    ok = set(include_paths, [filename:join([RootPath, "_build", "default", "lib"]),filename:join([RootPath, "apps"])] ++ find_dirs(RootPath, [".hrl"])),
+    ok = set(include_paths, [filename:join([RootPath, "_build", "default", "lib"]),
+                            filename:join([RootPath, "_build", "default", "plugin"]),
+                            filename:join([RootPath, "apps"])] ++ find_dirs(RootPath, [".hrl"])),
     ok = set(otp_paths, otp_paths(els_config:get(otp_path), false) -- ExcludePaths),
     ok = add_code_paths(els_config:get(code_path_extra_dirs), RootPath),
 
