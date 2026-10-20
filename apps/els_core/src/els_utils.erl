@@ -126,10 +126,13 @@ find_header(Id) ->
 -spec find_module(atom()) -> {ok, uri()} | {error, not_found}.
 find_module(Id) ->
     case find_modules(Id) of
-        {ok, [Uri | _]} ->
-            {ok, Uri};
         {ok, []} ->
-            {error, not_found}
+            {error, not_found};
+        {ok, [Uri]} ->
+            {ok, Uri};
+        {ok, Uris} ->
+            [Uri|_] = lists:sort(fun(I1, I2) -> byte_size(I1) < byte_size(I2) end, Uris),
+            {ok, Uri}
     end.
 
 %% @doc Look for all versions of a module in the DB
