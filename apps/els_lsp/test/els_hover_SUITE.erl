@@ -390,7 +390,8 @@ edoc_spec(Config) ->
 local_macro(Config) ->
     Uri = ?config(hover_macro_uri, Config),
     #{result := Result} = els_client:hover(Uri, 6, 4),
-    Value = <<"```erlang\n?LOCAL_MACRO = local_macro\n```">>,
+    Value =
+        <<"```erlang\n-define(LOCAL_MACRO, local_macro). %% 巅峰对决开启星期\n```"/utf8>>,
     Expected = #{
         contents => #{
             kind => <<"markdown">>,
@@ -403,7 +404,7 @@ local_macro(Config) ->
 included_macro(Config) ->
     Uri = ?config(hover_macro_uri, Config),
     #{result := Result} = els_client:hover(Uri, 7, 4),
-    Value = <<"```erlang\n?INCLUDED_MACRO_A = included_macro_a\n```">>,
+    Value = <<"```erlang\n-define(INCLUDED_MACRO_A, included_macro_a).\n```">>,
     Expected = #{
         contents => #{
             kind => <<"markdown">>,
@@ -416,7 +417,7 @@ included_macro(Config) ->
 weird_macro(Config) ->
     Uri = ?config(hover_macro_uri, Config),
     #{result := Result} = els_client:hover(Uri, 12, 20),
-    Value = <<"```erlang\n?WEIRD_MACRO = A when A > 1\n```">>,
+    Value = <<"```erlang\n-define(WEIRD_MACRO, A when A > 1).\n```">>,
     Expected = #{
         contents => #{
             kind => <<"markdown">>,
@@ -429,7 +430,7 @@ weird_macro(Config) ->
 macro_with_zero_args(Config) ->
     Uri = ?config(hover_macro_uri, Config),
     #{result := Result} = els_client:hover(Uri, 18, 10),
-    Value = <<"```erlang\n?MACRO_WITH_ARGS() = {macro}\n```">>,
+    Value = <<"```erlang\n-define(MACRO_WITH_ARGS(), {macro}).\n```">>,
     Expected = #{
         contents => #{
             kind => <<"markdown">>,
@@ -442,7 +443,7 @@ macro_with_zero_args(Config) ->
 macro_with_args(Config) ->
     Uri = ?config(hover_macro_uri, Config),
     #{result := Result} = els_client:hover(Uri, 19, 10),
-    Value = <<"```erlang\n?MACRO_WITH_ARGS(X, Y) = {macro, X, Y}\n```">>,
+    Value = <<"```erlang\n-define(MACRO_WITH_ARGS(X, Y), {macro, X, Y}).\n```">>,
     Expected = #{
         contents => #{
             kind => <<"markdown">>,

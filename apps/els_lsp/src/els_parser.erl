@@ -518,7 +518,16 @@ attribute(Tree) ->
                 to => get_end_location(lists:last(Value))
             },
             Args = define_args(Define),
-            Data = #{value_range => ValueRange, args => Args},
+            Data = #{
+                value_range => ValueRange,
+                args => Args,
+                %% Range of the whole `-define(...).' attribute. Used, for
+                %% example, to show the complete definition on hover.
+                define_range => #{
+                    from => get_start_location(Tree),
+                    to => get_end_location(Tree)
+                }
+            },
             [poi(DefinePos, define, define_name(Define), Data)];
         {include, [Node]} ->
             include_pois(Pos, include, Node);

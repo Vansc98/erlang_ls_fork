@@ -1,6 +1,6 @@
 -module(hover_macro).
 -include("code_navigation.hrl").
--define(LOCAL_MACRO, local_macro).
+-define(LOCAL_MACRO, local_macro). %% 巅峰对决开启星期
 
 f() ->
   ?LOCAL_MACRO,

@@ -9,6 +9,7 @@
 -record(state, {
     buffer = <<>> :: binary(),
     connected :: pid(),
+    encoding = latin1 :: latin1 | unicode | utf8,
     pending = [] :: [any()]
 }).
 
@@ -70,15 +71,18 @@ handle_locally(From, Ref, Request, State0) ->
 
 -spec handle_request(any(), state()) ->
     {reply, any(), state()} | {noreply, state()}.
-handle_request({setopts, _Opts}, State) ->
-    {reply, ok, State};
+handle_request({setopts, Opts}, State) ->
+    Encoding = proplists:get_value(encoding, Opts, State#state.encoding),
+    {reply, ok, State#state{encoding = Encoding}};
 handle_request({put_chars, Encoding, M, F, Args}, State0) ->
     Chars = apply(M, F, Args),
     handle_request({put_chars, Encoding, Chars}, State0);
 handle_request({put_chars, Encoding, Chars}, State0) ->
-    EncodedChars = unicode:characters_to_list(Chars, Encoding),
-    CharsBin = els_utils:to_binary(EncodedChars),
-    Buffer = State0#state.buffer,
+    %% Convert the chardata to the encoding of the device, exactly like a
+    %% real io device would. LSP payloads are written as if the device were
+    %% latin1, so binary bytes must not be re-encoded as UTF-8.
+    #state{encoding = DeviceEncoding, buffer = Buffer} = State0,
+    CharsBin = unicode:characters_to_binary(Chars, Encoding, DeviceEncoding),
     State = State0#state{buffer = <<Buffer/binary, CharsBin/binary>>},
     {reply, ok, State};
 handle_request({get_line, _Encoding, _Prompt}, State0) ->

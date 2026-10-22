@@ -84,15 +84,10 @@ docs(Uri, #{kind := function_clause, id := {F, A, _Index}} = POI) ->
     function_docs('local', M, F, A) ++ def_text(Uri, POI);
 docs(Uri, #{kind := macro, id := Name} = POI) ->
     case els_code_navigation:goto_definition(Uri, POI) of
-        {ok, [{DefUri, #{data := #{args := Args, value_range := ValueRange}}}]} when
+        {ok, [{DefUri, #{data := #{args := Args} = Data}}]} when
             is_list(Args); is_atom(Name)
         ->
-            NameStr = macro_signature(Name, Args),
-
-            ValueText = get_valuetext(DefUri, ValueRange),
-
-            Line = lists:flatten(["?", NameStr, " = ", ValueText]),
-            [{code_line, Line}];
+            [{code_line, define_text(DefUri, Data)}];
         _ ->
             []
     end;
@@ -215,6 +210,32 @@ type_docs(_Type, M, F, A, false = _DocsMemo) ->
 get_valuetext(DefUri, #{from := From, to := To}) ->
     {ok, #{text := Text}} = els_utils:lookup_document(DefUri),
     els_utils:to_list(els_text:range(Text, From, To)).
+
+%% @doc Extract the source of a whole macro definition.
+%%
+%%      The line with the terminating dot is taken in full, so that a
+%%      trailing comment (e.g. `-define(FOO, 1). %% description') is shown
+%%      together with the definition.
+-spec define_text(uri(), map()) -> unicode:charlist().
+define_text(DefUri, Data) ->
+    {ok, #{text := Text}} = els_utils:lookup_document(DefUri),
+    From = line_of(define_start_location(Data)),
+    To = line_of(define_end_location(Data)),
+    Lines = binary:split(Text, [<<"\r\n">>, <<"\n">>], [global]),
+    Selected = lists:sublist(Lines, From, To - From + 1),
+    els_utils:to_list(iolist_to_binary(lists:join(<<"\n">>, Selected))).
+
+-spec define_start_location(map()) -> erl_anno:location().
+define_start_location(#{define_range := #{from := From}}) -> From;
+define_start_location(#{value_range := #{from := From}}) -> From.
+
+-spec define_end_location(map()) -> erl_anno:location().
+define_end_location(#{define_range := #{to := To}}) -> To;
+define_end_location(#{value_range := #{to := To}}) -> To.
+
+-spec line_of(erl_anno:location()) -> pos_integer().
+line_of({Line, _Column}) -> Line;
+line_of(Line) when is_integer(Line) -> Line.
 
 -spec signature(application_type(), atom(), atom(), non_neg_integer()) ->
     string().
@@ -660,12 +681,6 @@ format_edoc(Desc) when is_map(Desc) ->
     Doc = maps:get(Lang, Desc, <<>>),
     FormattedDoc = els_utils:to_list(docsh_edoc:format_edoc(Doc, #{})),
     [{text, FormattedDoc}].
-
--spec macro_signature(els_poi:poi_id(), els_arg:args()) -> unicode:charlist().
-macro_signature({Name, _Arity}, Args) ->
-    [atom_to_list(Name), "(", lists:join(", ", [els_arg:name(A) || A <- Args]), ")"];
-macro_signature(Name, none) ->
-    atom_to_list(Name).
 
 -spec setup_group_leader_proxy() -> pid().
 setup_group_leader_proxy() ->
