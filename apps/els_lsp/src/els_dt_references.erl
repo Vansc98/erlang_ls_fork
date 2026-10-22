@@ -137,7 +137,7 @@ insert(Kind, Map) when is_map(Map) ->
 versioned_insert(Kind, #{id := Id, version := Version} = Map) ->
     Record = from_item(Kind, Map),
     Condition = fun(#els_dt_references{version = CurrentVersion}) ->
-        CurrentVersion =:= null orelse Version >= CurrentVersion
+        els_db:version_is_newer(Version, CurrentVersion)
     end,
     els_db:conditional_write(name(), Id, Record, Condition).
 

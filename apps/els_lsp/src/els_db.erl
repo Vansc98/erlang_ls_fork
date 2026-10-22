@@ -12,7 +12,8 @@
     select_delete/2,
     tables/0,
     write/2,
-    conditional_write/4
+    conditional_write/4,
+    version_is_newer/2
 ]).
 
 %%==============================================================================
@@ -68,6 +69,20 @@ write(Table, Object) when is_tuple(Object) ->
     ok | {error, any()}.
 conditional_write(Table, Key, Object, Condition) when is_tuple(Object) ->
     els_db_server:conditional_write(Table, Key, Object, Condition).
+
+%% @doc Check whether a new version should replace the current one.
+%%
+%%      A `null' version means "unknown" (e.g. a document indexed from
+%%      disk) and must never overwrite a versioned one (e.g. a document
+%%      coming from an open editor buffer). Otherwise versions are
+%%      expected to be monotonic.
+-spec version_is_newer(null | integer(), null | integer()) -> boolean().
+version_is_newer(_Version, null) ->
+    true;
+version_is_newer(null, _CurrentVersion) ->
+    false;
+version_is_newer(Version, CurrentVersion) ->
+    Version >= CurrentVersion.
 
 -spec clear_table(atom()) -> ok.
 clear_table(Table) ->

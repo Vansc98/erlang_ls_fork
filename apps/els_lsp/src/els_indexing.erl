@@ -17,6 +17,7 @@
 -export([force_deep_index/1]).
 -export([force_deep_index/2]).
 -export([force_deep_index/3]).
+-export([force_deep_index/4]).
 -export([need_index/1]).
 %%==============================================================================
 %% Includes
@@ -91,7 +92,12 @@ force_deep_index(Uri, Source) ->
     {ok, Text} = file:read_file(Path),
     force_deep_index(Uri, Source, Text).
 force_deep_index(Uri, Source, Text) ->
-    #{id := Id, kind := Kind} = Document = els_dt_document:new(Uri, Text, Source),
+    force_deep_index(Uri, Source, Text, _Version = null).
+force_deep_index(Uri, Source, Text, Version) ->
+    #{
+        id := Id,
+        kind := Kind
+    } = Document = els_dt_document:new(Uri, Text, Source, Version),
     ModuleItem = els_dt_document_index:new(Id, Uri, Kind),
     ok = els_dt_document_index:insert(ModuleItem),
     deep_index(Document, true).
@@ -372,7 +378,7 @@ init_index(FullName, _SkipGeneratedFiles, _GeneratedFilesTag, Source = app, _Dir
                 true ->
                     % hook_deep_index(Document);
                     case els_utils:lookup_document(Uri) of
-                        {ok, [_Document]} ->
+                        {ok, _Document} ->
                             ok;
                         _ ->
                             {ok, Text} = file:read_file(FullName),

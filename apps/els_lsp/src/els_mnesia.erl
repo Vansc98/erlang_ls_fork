@@ -14,7 +14,7 @@
 -export([get_lastest_docment/2]).
 -export([hook_deep_index/3]).
 -export([completion/1]).
--export([hook_file_open/2]).
+-export([hook_file_open/3]).
 -export([hook_file_save/1]).
 -export([get_uri/1]).
 -export([hook_source_finish/1]).
@@ -228,9 +228,9 @@ item2rfa(#{data := #{<<"module">> := M,<<"function">> := F,<<"arity">> := A}, in
     }.
 
 
-hook_file_open(Uri, Text) ->
+hook_file_open(Uri, Text, Version) ->
     els_parser:init_raw_string_variable(Uri),
-    Document = els_indexing:force_deep_index(Uri, app, Text),
+    Document = els_indexing:force_deep_index(Uri, app, Text, Version),
     els_parser:update_raw_string_variable_to_ets(),
     case els_indexing:need_index(Uri) of
         true ->

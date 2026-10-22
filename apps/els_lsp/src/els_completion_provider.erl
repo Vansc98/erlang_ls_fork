@@ -1827,14 +1827,21 @@ macro_label(Name) ->
 
 -spec macro_to_label(atom()) -> binary().
 macro_to_label(Name) ->
-    %% Trick to ensure we can handle macros like ?'FOO BAR'.
+    %% A macro name can be written without quotes when it forms a single
+    %% var or atom token (e.g. ?MACRO_A), and must be quoted otherwise
+    %% (e.g. ?'FOO BAR'). Reserved words are not valid macro names, so
+    %% they stay quoted (e.g. ?'if').
     Bin = atom_to_binary(Name, utf8),
-    LowerBin = string:lowercase(Bin),
-    LowerAtom = binary_to_atom(LowerBin, utf8),
-    case atom_to_label(LowerAtom) == LowerBin of
-        true ->
+    Text = unicode:characters_to_list(<<Bin/binary, ".">>),
+    case erl_scan:string(Text) of
+        {ok, [{var, _, _}, {dot, _}], _} ->
             Bin;
-        false ->
+        {ok, [{atom, _, Atom}, {dot, _}], _} ->
+            case erl_scan:reserved_word(Atom) of
+                true -> atom_to_label(Name);
+                false -> Bin
+            end;
+        _ ->
             atom_to_label(Name)
     end.
 

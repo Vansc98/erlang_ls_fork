@@ -23,6 +23,7 @@
     definition_after_closing/1,
     duplicate_definition/1,
     export_entry/1,
+    export_entry_after_disk_reindex/1,
     fun_local/1,
     fun_remote/1,
     import_entry/1,
@@ -292,6 +293,53 @@ export_entry(Config) ->
         Range
     ),
     ok.
+
+%% @doc A document coming from an editor buffer must not be replaced by an
+%%      unversioned (disk) indexing write, otherwise positions computed on
+%%      the buffer would resolve against the wrong text.
+-spec export_entry_after_disk_reindex(config()) -> ok.
+export_entry_after_disk_reindex(Config) ->
+    Uri = ?config(code_navigation_uri, Config),
+    DiskText = ?config(code_navigation_text, Config),
+    %% Simulate an unsaved buffer: one extra line at the top.
+    BufferText = <<"%% added line\n", DiskText/binary>>,
+    ok = els_client:did_open(Uri, <<"erlang">>, 2, BufferText),
+    ok = wait_for_text(Uri, <<"%% added line\n">>),
+    %% Simulate the startup/background indexer writing the on-disk copy
+    %% after didOpen. This write has no version and must be rejected.
+    ok = els_indexing:shallow_index(Uri, DiskText, app),
+    ?assertMatch(
+        {ok, #{text := BufferText, version := 2}},
+        els_utils:lookup_document(Uri)
+    ),
+    %% Click the callback_a entry in the export list. With the buffer
+    %% applied, the export list is on line 9 and the definition of
+    %% callback_a() is on line 29.
+    Def = els_client:definition(Uri, 9, 16),
+    #{result := [#{range := Range, uri := DefUri}]} = Def,
+    ?assertEqual(Uri, DefUri),
+    ?assertEqual(
+        els_protocol:range(#{from => {29, 1}, to => {29, 11}}),
+        Range
+    ),
+    ok.
+
+-spec wait_for_text(binary(), binary()) -> ok.
+wait_for_text(Uri, Prefix) ->
+    wait_for_text(Uri, Prefix, 100).
+
+-spec wait_for_text(binary(), binary(), non_neg_integer()) -> ok.
+wait_for_text(_Uri, _Prefix, 0) ->
+    ct:fail(document_not_updated);
+wait_for_text(Uri, Prefix, Retries) ->
+    {ok, #{text := Text}} = els_utils:lookup_document(Uri),
+    case binary:match(Text, Prefix) of
+        {0, _} ->
+            ok;
+        _ ->
+            timer:sleep(20),
+            wait_for_text(Uri, Prefix, Retries - 1)
+    end.
 
 -spec fun_local(config()) -> ok.
 fun_local(Config) ->

@@ -3,14 +3,8 @@
     // for the documentation about the tasks.json format
     "version": "2.0.0",
     "tasks": [
-        {
-            "label": "编译(windows)",
-            "type": "shell",
-            "command": "rebar3 compile",
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
+        {"label": "编译(windows)","type": "shell","command": "rebar3 compile",
+            "group": {"kind": "build","isDefault": true},
             "problemMatcher": [
                 {
                     "owner": "erlang25erlc",
@@ -35,6 +29,20 @@
             "group": {
                 "build": true
             }
+        },
+        {
+            "label": "复制bin到Erlang OTP(windows)",
+            "type": "process",
+            "command": "powershell.exe",
+            "args": [
+                "-NoProfile",
+                "-File",
+                "${workspaceFolder}/.vscode/copy-bin.ps1"
+            ],
+            "group": {
+                "build": true
+            },
+            "problemMatcher": []
         },
         {
             "label": "shell",

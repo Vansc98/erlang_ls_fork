@@ -34,8 +34,8 @@ did_change(Params) ->
         [Change] when not is_map_key(<<"range">>, Change) -> %% Full
             #{<<"text">> := Text} = Change,
             {ok, Document} = els_utils:lookup_document(Uri),
-            NewDocument = Document#{text => Text, version => Version},
-            els_dt_document:insert(NewDocument),
+            NewDocument = Document#{text => Text, version => Version, pois => ondemand},
+            ok = insert_change(NewDocument),
             % background_index(NewDocument);
             set_loop(Uri);
         _ -> %% Incremental
@@ -43,10 +43,24 @@ did_change(Params) ->
             Edits = [to_edit(Change) || Change <- ContentChanges],
             {ok, #{text := Text0} = Document} = els_utils:lookup_document(Uri),
             Text = els_text:apply_edits(Text0, Edits),
-            NewDocument = Document#{text => Text, version => Version},
-            els_dt_document:insert(NewDocument),
+            %% The stored POIs refer to the previous text: invalidate them
+            %% so that they are recomputed from the new text on demand.
+            NewDocument = Document#{text => Text, version => Version, pois => ondemand},
+            ok = insert_change(NewDocument),
             % background_index(NewDocument)
             set_loop(Uri)
+    end.
+
+%% @doc Insert a document coming from the editor.
+%%
+%%      If an older (or equally versioned) write already made it into the
+%%      store, keep the stored one. A `{error, condition_not_satisfied}'
+%%      here simply means we are processing an out-of-order notification.
+-spec insert_change(els_dt_document:item()) -> ok.
+insert_change(Document) ->
+    case els_dt_document:versioned_insert(Document) of
+        ok -> ok;
+        {error, condition_not_satisfied} -> ok
     end.
 
 -spec did_open(map()) -> ok.
@@ -55,14 +69,16 @@ did_open(Params) ->
         <<"textDocument">> := #{
             <<"uri">> := Uri0,
             <<"text">> := Text,
-            <<"version">> := _Version
+            <<"version">> := Version
         }
     } = Params,
     Uri = els_uri:fix_uri(Uri0),
     % Document = els_dt_document:new(Uri, Text, _Source = app, Version),
     % els_dt_document:insert(Document),
     % els_indexing:deep_index(Document, _UpdateWords = false),
-    els_mnesia:hook_file_open(Uri, Text),
+    %% Pass the client version along: the document coming from the editor
+    %% buffer must not be overwritten by unversioned (disk) indexing writes.
+    els_mnesia:hook_file_open(Uri, Text, Version),
     ok.
 
 -spec did_save(map()) -> ok.
@@ -84,7 +100,14 @@ did_change_watched_files(Params) ->
     ok.
 
 -spec did_close(map()) -> ok.
-did_close(_Params) -> ok.
+did_close(Params) ->
+    #{<<"textDocument">> := #{<<"uri">> := Uri0}} = Params,
+    Uri = els_uri:fix_uri(Uri0),
+    els_docs_memo:delete_by_uri(Uri),
+    %% The buffer is gone: the file on disk is authoritative again.
+    ok = els_dt_document:demote(Uri),
+    reload_from_disk(Uri),
+    ok.
 
 -spec to_edit(map()) -> els_text:edit().
 to_edit(#{<<"text">> := Text, <<"range">> := Range}) ->

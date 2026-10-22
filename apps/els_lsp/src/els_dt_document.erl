@@ -22,7 +22,8 @@
     insert/1,
     versioned_insert/1,
     lookup/1,
-    delete/1
+    delete/1,
+    demote/1
 ]).
 
 -export([
@@ -164,10 +165,28 @@ insert(Map) when is_map(Map) ->
 versioned_insert(#{uri := Uri, version := Version} = Map) ->
     Record = from_item(Map),
     Condition = fun(#els_dt_document{version = CurrentVersion}) ->
-        CurrentVersion =:= null orelse Version >= CurrentVersion
+        els_db:version_is_newer(Version, CurrentVersion)
     end,
     % ?LOG_ERROR("Uri:~p", [Uri]),
     els_db:conditional_write(name(), Uri, Record, Condition).
+
+%% @doc Demote a versioned document back to "unversioned".
+%%
+%%      Used when an editor closes a buffer: from that point on the copy
+%%      on disk is authoritative again and indexing writes should be
+%%      allowed to replace the document.
+-spec demote(uri()) -> ok.
+demote(Uri) ->
+    case els_db:lookup(name(), Uri) of
+        {ok, [#els_dt_document{version = Version} = Record]} when Version =/= null ->
+            Condition = fun(#els_dt_document{version = V}) -> V =:= Version end,
+            _ = els_db:conditional_write(
+                name(), Uri, Record#els_dt_document{version = null}, Condition
+            ),
+            ok;
+        _ ->
+            ok
+    end.
 
 -spec lookup(uri()) -> {ok, [item()]}.
 lookup(Uri) ->
